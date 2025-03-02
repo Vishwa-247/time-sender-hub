@@ -1,14 +1,16 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, Settings, User, LogIn } from "lucide-react";
+import { Calendar, Settings, User, LogIn, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const isLandingPage = location.pathname === "/";
-  const isAuthenticated = false; // This will later be connected to auth state
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,7 +53,7 @@ const Navbar = () => {
           >
             Home
           </Link>
-          {isAuthenticated && (
+          {user && (
             <>
               <Link
                 to="/dashboard"
@@ -78,37 +80,113 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center space-x-4">
-          {isAuthenticated ? (
-            <Link to="/settings">
-              <Button variant="ghost" size="icon" aria-label="User settings">
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-          ) : (
-            <Link to="/auth">
+          {user ? (
+            <>
+              <Link to="/settings">
+                <Button variant="ghost" size="icon" aria-label="User settings">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 className="hidden md:flex"
-                aria-label="Sign in"
+                onClick={() => signOut()}
+                aria-label="Sign out"
               >
-                <LogIn className="h-4 w-4 mr-2" />
-                Sign In
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="md:hidden"
-                aria-label="Sign in"
+                onClick={() => signOut()}
+                aria-label="Sign out"
               >
-                <LogIn className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
               </Button>
-            </Link>
+              <Link to="/dashboard">
+                <Button className="bg-primary hover:bg-primary/90">
+                  Dashboard
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/auth">
+                <Button
+                  variant="ghost"
+                  className="hidden md:flex"
+                  aria-label="Sign in"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label="Sign in"
+                >
+                  <LogIn className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link to="/auth">
+                <Button className="bg-primary hover:bg-primary/90">
+                  Get Started
+                </Button>
+              </Link>
+            </>
           )}
-          <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-            <Button className="bg-primary hover:bg-primary/90">
-              {isAuthenticated ? "Dashboard" : "Get Started"}
-            </Button>
-          </Link>
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <div className="flex flex-col space-y-4 mt-8">
+                <Link
+                  to="/"
+                  className="text-lg font-medium py-2 transition-colors hover:text-primary"
+                >
+                  Home
+                </Link>
+                {user ? (
+                  <>
+                    <Link
+                      to="/dashboard"
+                      className="text-lg font-medium py-2 transition-colors hover:text-primary"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="text-lg font-medium py-2 transition-colors hover:text-primary"
+                    >
+                      Settings
+                    </Link>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <Link to="/auth">
+                    <Button className="w-full mt-4">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

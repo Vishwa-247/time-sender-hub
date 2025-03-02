@@ -10,54 +10,8 @@ import Navbar from "@/components/Navbar";
 import FileCard, { FileItem } from "@/components/FileCard";
 import ScheduleForm, { ScheduleFormData } from "@/components/ScheduleForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// Mock data generator
-const generateMockFiles = (): FileItem[] => {
-  const fileTypes = [
-    "application/pdf",
-    "image/jpeg",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/zip"
-  ];
-  
-  const fileNames = [
-    "Project Proposal.pdf",
-    "Financial Report.xlsx",
-    "Contract Agreement.docx",
-    "Product Image.jpg",
-    "Source Code.zip",
-    "Meeting Notes.pdf",
-    "Marketing Presentation.pptx",
-    "User Research.pdf",
-    "Budget Plan.xlsx"
-  ];
-  
-  const statuses = ["pending", "sent", "failed"] as const;
-  
-  return Array.from({ length: 9 }, (_, i) => {
-    const now = new Date();
-    const createdDate = new Date(now.getTime() - Math.random() * 10 * 24 * 60 * 60 * 1000);
-    
-    // Random time in the future (0-30 days)
-    const futureTime = i < 6 
-      ? now.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000
-      : now.getTime() - Math.random() * 10 * 24 * 60 * 60 * 1000;
-    
-    const scheduledDate = new Date(futureTime);
-    
-    return {
-      id: `file-${i}`,
-      name: fileNames[i % fileNames.length],
-      size: Math.floor(Math.random() * 10 * 1024 * 1024),
-      type: fileTypes[i % fileTypes.length],
-      recipient: `recipient${i}@example.com`,
-      scheduledDate,
-      status: i < 6 ? "pending" : statuses[i % statuses.length],
-      createdAt: createdDate
-    };
-  });
-};
+import { useAuth } from "@/context/AuthContext";
+import { getScheduledFiles, scheduleFile, updateScheduledFile, deleteScheduledFile } from "@/services/fileService";
 
 const Dashboard = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -72,18 +26,29 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Simulate loading from API
-    const timer = setTimeout(() => {
-      const mockFiles = generateMockFiles();
-      setFiles(mockFiles);
-      setFilteredFiles(mockFiles);
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
+    fetchFiles();
   }, []);
+  
+  const fetchFiles = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getScheduledFiles();
+      setFiles(data);
+      setFilteredFiles(data);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load your files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   useEffect(() => {
     filterFiles();
@@ -129,44 +94,77 @@ const Dashboard = () => {
     });
   };
   
-  const handleNewSchedule = (formData: ScheduleFormData) => {
+  const handleNewSchedule = async (formData: ScheduleFormData) => {
     if (!formData.file) return;
     
-    const newFile: FileItem = {
-      id: `file-${files.length + 1}`,
-      name: formData.file.name,
-      size: formData.file.size,
-      type: formData.file.type,
-      recipient: formData.recipient,
-      scheduledDate: formData.scheduledDate,
-      status: "pending",
-      createdAt: new Date()
-    };
-    
-    setFiles(prev => [newFile, ...prev]);
-    setIsDialogOpen(false);
+    try {
+      await scheduleFile({
+        file: formData.file,
+        recipient: formData.recipient,
+        scheduledDate: formData.scheduledDate
+      });
+      
+      toast({
+        title: "Success",
+        description: "File scheduled successfully",
+      });
+      
+      fetchFiles();
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error scheduling file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule file",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleEditSchedule = (formData: ScheduleFormData) => {
+  const handleEditSchedule = async (formData: ScheduleFormData) => {
     if (!formData.id) return;
     
-    setFiles(prev => prev.map(file => {
-      if (file.id === formData.id) {
-        return {
-          ...file,
-          recipient: formData.recipient,
-          scheduledDate: formData.scheduledDate
-        };
-      }
-      return file;
-    }));
-    
-    setEditingFile(null);
-    setIsDialogOpen(false);
+    try {
+      await updateScheduledFile({
+        id: formData.id,
+        recipient: formData.recipient,
+        scheduledDate: formData.scheduledDate
+      });
+      
+      toast({
+        title: "Success",
+        description: "File schedule updated successfully",
+      });
+      
+      fetchFiles();
+      setEditingFile(null);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating file schedule:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update file schedule",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleDeleteFile = (id: string) => {
-    setFiles(prev => prev.filter(file => file.id !== id));
+  const handleDeleteFile = async (id: string) => {
+    try {
+      await deleteScheduledFile(id);
+      setFiles(prev => prev.filter(file => file.id !== id));
+      toast({
+        title: "Success",
+        description: "File deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleEditFile = (id: string) => {
