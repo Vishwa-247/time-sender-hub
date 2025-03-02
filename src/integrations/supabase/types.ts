@@ -160,9 +160,77 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_files: {
+        Row: {
+          access_token: string | null
+          created_at: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          recipient_email: string
+          scheduled_date: string
+          status: string
+          storage_path: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          recipient_email: string
+          scheduled_date: string
+          status?: string
+          storage_path: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          recipient_email?: string
+          scheduled_date?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      file_access: {
+        Row: {
+          file_name: string | null
+          file_type: string | null
+          id: string | null
+          recipient_email: string | null
+          storage_path: string | null
+        }
+        Insert: {
+          file_name?: string | null
+          file_type?: string | null
+          id?: string | null
+          recipient_email?: string | null
+          storage_path?: string | null
+        }
+        Update: {
+          file_name?: string | null
+          file_type?: string | null
+          id?: string | null
+          recipient_email?: string | null
+          storage_path?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

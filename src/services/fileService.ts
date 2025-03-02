@@ -80,6 +80,7 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
 
 export const deleteScheduledFile = async (id: string): Promise<void> => {
   try {
+    // Get storage path before deleting the record
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("storage_path")
@@ -118,7 +119,7 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       
     if (error) throw error;
     
-    return data.map(item => ({
+    return data.map((item: any) => ({
       id: item.id,
       name: item.file_name,
       size: item.file_size,
