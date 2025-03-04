@@ -66,7 +66,7 @@ const FileAccess = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="container-custom py-4">
+        <div className="container mx-auto px-4 py-4">
           <Link to="/" className="text-xl font-medium flex items-center space-x-2">
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               TimeCapsule
@@ -75,7 +75,7 @@ const FileAccess = () => {
         </div>
       </header>
       
-      <main className="container-custom py-12">
+      <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto text-center">
           <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8">
             <ArrowLeft className="mr-2 h-4 w-4" />

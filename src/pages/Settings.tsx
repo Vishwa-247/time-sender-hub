@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Bell, Palette, LogOut, Check, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,22 +11,31 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/context/AuthContext";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { user, signOut } = useAuth();
   
   // Profile settings
   const [name, setName] = useState("Jane Doe");
-  const [email, setEmail] = useState("jane.doe@example.com");
+  const [email, setEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Effect to set email from authenticated user
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email || "");
+    }
+  }, [user]);
   
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [scheduledDeliveries, setScheduledDeliveries] = useState(true);
   const [failedDeliveries, setFailedDeliveries] = useState(true);
   
-  // Appearance settings - using the theme from next-themes
+  // Appearance settings
   const [activeAccentColor, setActiveAccentColor] = useState("#3b82f6");
   
   const handleProfileSave = (e: React.FormEvent) => {
@@ -61,17 +70,21 @@ const Settings = () => {
     toast.success("Accent color updated");
   };
   
-  const handleLogout = () => {
-    // Simulate logout
-    toast.success("Logged out successfully");
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Logged out successfully");
+    } catch (error) {
+      toast.error("Failed to log out");
+      console.error("Logout error:", error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background pb-12">
       <Navbar />
       
-      <main className="container-custom pt-24">
+      <main className="container mx-auto px-4 pt-24">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Account Settings</h1>
@@ -154,6 +167,7 @@ const Settings = () => {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        disabled
                       />
                     </div>
                   </div>
@@ -287,7 +301,7 @@ const Settings = () => {
                   <Label>Theme Preference</Label>
                   
                   <RadioGroup
-                    value={theme}
+                    value={theme || "system"}
                     onValueChange={handleThemeChange}
                     className="grid grid-cols-1 md:grid-cols-3 gap-4"
                   >
@@ -357,6 +371,7 @@ const Settings = () => {
                     ].map(({color, name}) => (
                       <button
                         key={color}
+                        type="button"
                         className="h-8 w-8 rounded-full border flex items-center justify-center"
                         style={{ backgroundColor: color }}
                         aria-label={`Select ${name} as accent color`}
