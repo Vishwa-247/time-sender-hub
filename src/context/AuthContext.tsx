@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
@@ -66,7 +65,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signUp({
+      
+      // First check if user exists to provide better error message
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+        
+      if (existingUser) {
+        throw new Error("User with this email already exists");
+      }
+      
+      // Attempt to sign up the user
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -79,7 +91,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
       
+      // If signup was successful but user not immediately available, check if we need to manually create profile
+      if (data?.user) {
+        // Check if profile exists
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+          
+        if (!profileData && !profileError) {
+          // Create profile manually if needed
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: email,
+              full_name: fullName,
+              role: 'user'
+            });
+            
+          if (insertError) {
+            console.error("Error creating profile:", insertError);
+          }
+        }
+      }
+      
       toast.success("Account created successfully. Please check your email to confirm your account.");
+      
+      // After successful signup, we can go to the dashboard or keep the user on the auth page
+      // depending on if email confirmation is required or not
     } catch (error: any) {
       toast.error(error.message || "Error creating account");
       console.error("Error signing up:", error);
