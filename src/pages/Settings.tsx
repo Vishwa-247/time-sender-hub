@@ -36,7 +36,19 @@ const Settings = () => {
   const [failedDeliveries, setFailedDeliveries] = useState(true);
   
   // Appearance settings
-  const [activeAccentColor, setActiveAccentColor] = useState("#3b82f6");
+  const [activeAccentColor, setActiveAccentColor] = useState(() => {
+    const storedColor = localStorage.getItem('accentColor');
+    return storedColor || "#3b82f6"; // Default to blue if no stored preference
+  });
+  
+  // Effect to initialize accent color from localStorage on component mount
+  useEffect(() => {
+    const storedColor = localStorage.getItem('accentColor');
+    if (storedColor) {
+      applyAccentColor(storedColor);
+      setActiveAccentColor(storedColor);
+    }
+  }, []);
   
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,13 +72,46 @@ const Settings = () => {
     toast.success(`Theme changed to ${newTheme}`);
   };
 
+  // Helper function to update CSS variables for accent color
+  const applyAccentColor = (color: string) => {
+    // Convert hex to HSL values
+    const r = parseInt(color.substr(1, 2), 16) / 255;
+    const g = parseInt(color.substr(3, 2), 16) / 255;
+    const b = parseInt(color.substr(5, 2), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+      h = s = 0; // achromatic
+    } else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+        default: h = 0;
+      }
+      h /= 6;
+    }
+
+    const hue = Math.round(h * 360);
+    const saturation = Math.round(s * 100);
+    const lightness = Math.round(l * 100);
+    
+    // Update CSS variables
+    document.documentElement.style.setProperty('--primary', `${hue} ${saturation}% ${lightness}%`);
+    document.documentElement.style.setProperty('--accent', `${hue} ${saturation}% ${lightness}%`);
+    
+    // Store the selected color in localStorage
+    localStorage.setItem('accentColor', color);
+  };
+
   const handleAccentColorChange = (color: string) => {
     setActiveAccentColor(color);
-    
-    // Update CSS variable for accent color
-    document.documentElement.style.setProperty('--accent', color);
-    document.documentElement.style.setProperty('--primary', color);
-    
+    applyAccentColor(color);
     toast.success("Accent color updated");
   };
   
