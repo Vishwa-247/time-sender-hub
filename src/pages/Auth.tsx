@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const Auth = () => {
   const { signIn, signUp, isLoading } = useAuth();
@@ -26,12 +27,26 @@ const Auth = () => {
   
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please enter both email and password");
+      return;
+    }
     await signIn(email, password);
   };
   
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpError("");
+    
+    if (!fullName.trim()) {
+      setSignUpError("Please enter your full name");
+      return;
+    }
+    
+    if (!newEmail.trim()) {
+      setSignUpError("Please enter your email");
+      return;
+    }
     
     if (newPassword !== confirmPassword) {
       setSignUpError("Passwords do not match");
