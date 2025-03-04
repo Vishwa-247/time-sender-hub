@@ -10,9 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import { useTheme } from "next-themes";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   
   // Profile settings
   const [name, setName] = useState("Jane Doe");
@@ -24,8 +26,8 @@ const Settings = () => {
   const [scheduledDeliveries, setScheduledDeliveries] = useState(true);
   const [failedDeliveries, setFailedDeliveries] = useState(true);
   
-  // Appearance settings
-  const [theme, setTheme] = useState("light");
+  // Appearance settings - using the theme from next-themes
+  const [activeAccentColor, setActiveAccentColor] = useState("#3b82f6");
   
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +49,16 @@ const Settings = () => {
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     toast.success(`Theme changed to ${newTheme}`);
+  };
+
+  const handleAccentColorChange = (color: string) => {
+    setActiveAccentColor(color);
+    
+    // Update CSS variable for accent color
+    document.documentElement.style.setProperty('--accent', color);
+    document.documentElement.style.setProperty('--primary', color);
+    
+    toast.success("Accent color updated");
   };
   
   const handleLogout = () => {
@@ -335,14 +347,22 @@ const Settings = () => {
                 <div className="space-y-2">
                   <Label>Accent Color</Label>
                   <div className="flex items-center gap-3">
-                    {["#0ea5e9", "#8b5cf6", "#f97316", "#10b981", "#ef4444", "#3b82f6"].map((color) => (
+                    {[
+                      {color: "#3b82f6", name: "Blue"},
+                      {color: "#8b5cf6", name: "Purple"},
+                      {color: "#f97316", name: "Orange"},
+                      {color: "#10b981", name: "Green"},
+                      {color: "#ef4444", name: "Red"},
+                      {color: "#0ea5e9", name: "Sky"}
+                    ].map(({color, name}) => (
                       <button
                         key={color}
                         className="h-8 w-8 rounded-full border flex items-center justify-center"
                         style={{ backgroundColor: color }}
-                        aria-label={`Select ${color} as accent color`}
+                        aria-label={`Select ${name} as accent color`}
+                        onClick={() => handleAccentColorChange(color)}
                       >
-                        {color === "#3b82f6" && <Check className="h-4 w-4 text-white" />}
+                        {color === activeAccentColor && <Check className="h-4 w-4 text-white" />}
                       </button>
                     ))}
                   </div>

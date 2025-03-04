@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
+import { toast } from "sonner";
 
 export interface ScheduleFileParams {
   file: File;
@@ -28,6 +29,7 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
     
   if (error) {
     console.error("Error uploading file:", error);
+    toast.error(`Failed to upload file: ${error.message}`);
     throw error;
   }
   
@@ -37,9 +39,13 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
 export const scheduleFile = async (params: ScheduleFileParams): Promise<void> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) throw new Error("User not authenticated");
+    if (!userData.user) {
+      toast.error("User not authenticated");
+      throw new Error("User not authenticated");
+    }
     
     const storagePath = await uploadFile(params.file, userData.user.id);
+    const accessToken = crypto.randomUUID();
     
     const { error } = await supabase
       .from("scheduled_files")
@@ -51,11 +57,18 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
         storage_path: storagePath,
         recipient_email: params.recipient,
         scheduled_date: params.scheduledDate.toISOString(),
+        access_token: accessToken,
       });
       
-    if (error) throw error;
-  } catch (error) {
+    if (error) {
+      toast.error(`Failed to schedule file: ${error.message}`);
+      throw error;
+    }
+    
+    toast.success("File scheduled successfully");
+  } catch (error: any) {
     console.error("Error scheduling file:", error);
+    toast.error(`Error scheduling file: ${error.message}`);
     throw error;
   }
 };
@@ -71,9 +84,15 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
       })
       .eq("id", params.id);
       
-    if (error) throw error;
-  } catch (error) {
+    if (error) {
+      toast.error(`Failed to update schedule: ${error.message}`);
+      throw error;
+    }
+    
+    toast.success("Schedule updated successfully");
+  } catch (error: any) {
     console.error("Error updating scheduled file:", error);
+    toast.error(`Error updating scheduled file: ${error.message}`);
     throw error;
   }
 };
@@ -87,7 +106,10 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       .eq("id", id)
       .single();
       
-    if (error) throw error;
+    if (error) {
+      toast.error(`Failed to delete file: ${error.message}`);
+      throw error;
+    }
     
     // Delete from storage
     const { error: storageError } = await supabase
@@ -95,7 +117,10 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       .from("timecapsule")
       .remove([data.storage_path]);
       
-    if (storageError) console.error("Error removing file from storage:", storageError);
+    if (storageError) {
+      console.error("Error removing file from storage:", storageError);
+      // Continue with the database deletion even if storage deletion fails
+    }
     
     // Delete from database
     const { error: dbError } = await supabase
@@ -103,9 +128,15 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       .delete()
       .eq("id", id);
       
-    if (dbError) throw dbError;
-  } catch (error) {
+    if (dbError) {
+      toast.error(`Failed to delete record: ${dbError.message}`);
+      throw dbError;
+    }
+    
+    toast.success("File deleted successfully");
+  } catch (error: any) {
     console.error("Error deleting scheduled file:", error);
+    toast.error(`Error deleting scheduled file: ${error.message}`);
     throw error;
   }
 };
@@ -117,7 +148,10 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       .select("*")
       .order("created_at", { ascending: false });
       
-    if (error) throw error;
+    if (error) {
+      toast.error(`Failed to fetch files: ${error.message}`);
+      throw error;
+    }
     
     return data.map((item: any) => ({
       id: item.id,
@@ -129,8 +163,9 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       status: item.status as "pending" | "sent" | "failed",
       createdAt: new Date(item.created_at)
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching scheduled files:", error);
+    toast.error(`Error fetching scheduled files: ${error.message}`);
     return [];
   }
 };
@@ -148,20 +183,29 @@ export const getFileByToken = async (token: string): Promise<{
       .eq("status", "sent")
       .single();
       
-    if (error) return null;
+    if (error) {
+      toast.error("Invalid or expired access token");
+      return null;
+    }
     
-    const { data: fileData } = await supabase
+    const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
       .createSignedUrl(data.storage_path, 60 * 60); // 1 hour expiry
       
+    if (fileError) {
+      toast.error(`Failed to access file: ${fileError.message}`);
+      return null;
+    }
+    
     return {
       fileName: data.file_name,
       fileType: data.file_type,
       fileUrl: fileData?.signedUrl || ""
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching file by token:", error);
+    toast.error(`Error accessing file: ${error.message}`);
     return null;
   }
 };

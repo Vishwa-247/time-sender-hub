@@ -41,21 +41,13 @@ serve(async (req) => {
     
     for (const file of filesToSend || []) {
       try {
-        // Generate signed URL for the file
-        const { data: fileData } = await supabaseAdmin
-          .storage
-          .from("timecapsule")
-          .createSignedUrl(file.storage_path, 60 * 60 * 24 * 7); // 7 days expiry
-
-        if (!fileData?.signedUrl) {
-          throw new Error(`Could not generate signed URL for file ${file.id}`);
-        }
+        // Generate access URL with the token
+        const accessUrl = `${req.headers.get("origin") || "https://your-app-url.com"}/access/${file.access_token}`;
 
         // In a real-world scenario, you would send an email here
         // For now, we'll just log and update the status
         console.log(`Sending file ${file.file_name} to ${file.recipient_email}`);
-        console.log(`Access URL: ${fileData.signedUrl}`);
-        console.log(`Token: ${file.access_token}`);
+        console.log(`Access URL: ${accessUrl}`);
 
         // Update file status to sent
         const { error: updateError } = await supabaseAdmin

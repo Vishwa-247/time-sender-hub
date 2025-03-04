@@ -9,47 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      courses: {
-        Row: {
-          category: string
-          content: Json | null
-          created_at: string | null
-          description: string | null
-          id: string
-          instructor_id: string | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          category: string
-          content?: Json | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          instructor_id?: string | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          category?: string
-          content?: Json | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          instructor_id?: string | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "courses_instructor_id_fkey"
-            columns: ["instructor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       enrollments: {
         Row: {
           course_id: string | null
@@ -80,49 +39,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "enrollments_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "enrollments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mock_interviews: {
-        Row: {
-          created_at: string | null
-          feedback: Json | null
-          id: string
-          recording_url: string | null
-          type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          feedback?: Json | null
-          id?: string
-          recording_url?: string | null
-          type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          feedback?: Json | null
-          id?: string
-          recording_url?: string | null
-          type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mock_interviews_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
