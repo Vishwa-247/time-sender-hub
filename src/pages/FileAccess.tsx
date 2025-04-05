@@ -1,9 +1,10 @@
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { File, Download, ArrowLeft, Loader2 } from "lucide-react";
+import { File, Download, ArrowLeft, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFileByToken } from "@/services/fileService";
+import { useTheme } from "next-themes";
 
 const FileAccess = () => {
   const { token } = useParams<{ token: string }>();
@@ -14,6 +15,7 @@ const FileAccess = () => {
     fileUrl: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const fetchFile = async () => {
@@ -85,11 +87,11 @@ const FileAccess = () => {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
-              <p className="text-muted-foreground">Loading your file...</p>
+              <p className="text-foreground">Loading your file...</p>
             </div>
           ) : error ? (
-            <div className="py-12 border border-dashed rounded-xl">
-              <h2 className="text-2xl font-bold mb-4">Oops! {error}</h2>
+            <div className="py-12 border border-dashed rounded-xl bg-background text-foreground">
+              <h2 className="text-2xl font-bold mb-4 text-foreground">Oops! {error}</h2>
               <p className="text-muted-foreground mb-6">
                 The file you're looking for may have been removed or the link has expired.
               </p>
@@ -99,7 +101,12 @@ const FileAccess = () => {
             </div>
           ) : (
             <div className="py-12">
-              <h2 className="text-2xl font-bold mb-2">Your file is ready!</h2>
+              <div className="mb-6 text-primary flex items-center justify-center">
+                <Shield className="h-6 w-6 mr-2" />
+                <span className="text-sm font-medium">Secure File Access</span>
+              </div>
+              
+              <h2 className="text-2xl font-bold mb-2 text-foreground">Your file is ready!</h2>
               <p className="text-muted-foreground mb-8">
                 You can now view or download the file.
               </p>
@@ -107,12 +114,12 @@ const FileAccess = () => {
               <div className="flex flex-col items-center">
                 {getFileIcon()}
                 
-                <h3 className="text-xl font-semibold mb-2">{fileData?.fileName}</h3>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">{fileData?.fileName}</h3>
                 <p className="text-sm text-muted-foreground mb-6">
                   {fileData?.fileType}
                 </p>
                 
-                <Button asChild size="lg">
+                <Button asChild size="lg" className="animate-pulse">
                   <a 
                     href={fileData?.fileUrl} 
                     download={fileData?.fileName}

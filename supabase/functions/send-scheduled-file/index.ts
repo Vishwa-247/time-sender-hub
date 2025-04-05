@@ -41,17 +41,52 @@ serve(async (req) => {
     
     for (const file of filesToSend || []) {
       try {
-        // Generate access URL with the token
-        const origin = req.headers.get("origin") || "https://your-app-url.com";
-        // Fix the access URL to use /access/ instead of /file/
+        // Get the request URL to determine base URL for access links
+        const baseUrl = new URL(req.url).origin;
+        // Use the request origin if available, otherwise use the base URL from request
+        const origin = req.headers.get("origin") || baseUrl;
         const accessUrl = `${origin}/access/${file.access_token}`;
 
         console.log(`Sending file ${file.file_name} to ${file.recipient_email}`);
         console.log(`Access URL: ${accessUrl}`);
 
-        // Here you would integrate with an email service like Resend.com
-        // This is the point where emails would actually be sent
-        // For now, we'll just log and update the status
+        // Send email with link using Deno fetch API
+        const emailResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            from: "TimeCapsule <onboarding@resend.dev>",
+            to: file.recipient_email,
+            subject: `Your scheduled file "${file.file_name}" is ready`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #3b82f6;">Your Time Capsule file is ready!</h1>
+                <p>The file you scheduled is now available to download:</p>
+                <p><strong>${file.file_name}</strong></p>
+                <div style="margin: 30px 0;">
+                  <a href="${accessUrl}" 
+                     style="background-color: #3b82f6; color: white; padding: 12px 20px; 
+                            text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    Access Your File
+                  </a>
+                </div>
+                <p style="color: #6b7280; font-size: 14px;">
+                  This link will give you access to your file. For security, don't share this link with others.
+                </p>
+              </div>
+            `
+          })
+        });
+
+        const emailResult = await emailResponse.json();
+        console.log("Email sending result:", emailResult);
+
+        if (!emailResponse.ok) {
+          throw new Error(`Failed to send email: ${JSON.stringify(emailResult)}`);
+        }
 
         // Update file status to sent
         const { error: updateError } = await supabaseAdmin

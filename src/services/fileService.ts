@@ -143,9 +143,16 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
 
 export const getScheduledFiles = async (): Promise<FileItem[]> => {
   try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      toast.error("User not authenticated");
+      return [];
+    }
+
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("*")
+      .eq("user_id", userData.user.id)
       .order("created_at", { ascending: false });
       
     if (error) {
@@ -176,6 +183,7 @@ export const getFileByToken = async (token: string): Promise<{
   fileUrl: string;
 } | null> => {
   try {
+    // No authentication needed for token-based access
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("*")
@@ -184,17 +192,17 @@ export const getFileByToken = async (token: string): Promise<{
       .single();
       
     if (error) {
-      toast.error("Invalid or expired access token");
+      console.error("Error fetching file by token:", error);
       return null;
     }
     
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
-      .createSignedUrl(data.storage_path, 60 * 60); // 1 hour expiry
+      .createSignedUrl(data.storage_path, 60 * 60 * 24); // 24 hour expiry for better user experience
       
     if (fileError) {
-      toast.error(`Failed to access file: ${fileError.message}`);
+      console.error("Error creating signed URL:", fileError);
       return null;
     }
     
@@ -205,7 +213,27 @@ export const getFileByToken = async (token: string): Promise<{
     };
   } catch (error: any) {
     console.error("Error fetching file by token:", error);
-    toast.error(`Error accessing file: ${error.message}`);
     return null;
+  }
+};
+
+// Add function to manually trigger file sending (for testing)
+export const triggerFileSending = async (): Promise<void> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-scheduled-file', {
+      method: 'POST',
+      body: {}
+    });
+    
+    if (error) {
+      toast.error(`Failed to trigger file sending: ${error.message}`);
+      throw error;
+    }
+    
+    toast.success("File sending triggered successfully");
+    console.log("File sending result:", data);
+  } catch (error: any) {
+    console.error("Error triggering file sending:", error);
+    toast.error(`Error triggering file sending: ${error.message}`);
   }
 };
