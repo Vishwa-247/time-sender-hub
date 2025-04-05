@@ -308,9 +308,9 @@ const Dashboard = () => {
       </main>
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-background text-foreground border-border">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-foreground">
               {editingFile ? "Edit Scheduled File" : "Schedule New File"}
             </DialogTitle>
           </DialogHeader>

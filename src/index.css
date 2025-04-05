@@ -96,6 +96,27 @@
   html {
     @apply scroll-smooth;
   }
+  
+  /* Fix for date picker and popover items in dark mode */
+  .rdp-day_selected {
+    @apply bg-primary text-primary-foreground;
+  }
+  
+  .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+    @apply bg-secondary text-secondary-foreground;
+  }
+  
+  .dark .rdp-day {
+    @apply text-foreground;
+  }
+  
+  .dark .rdp-head_cell {
+    @apply text-muted-foreground;
+  }
+  
+  .dark .rdp-nav_button {
+    @apply text-foreground border-border hover:bg-secondary;
+  }
 }
 
 @layer utilities {

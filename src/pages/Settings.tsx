@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Bell, Palette, LogOut, Check, Calendar } from "lucide-react";
@@ -12,6 +11,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 
 const Settings = () => {
   const navigate = useNavigate();
