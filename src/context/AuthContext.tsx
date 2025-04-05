@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
@@ -67,13 +68,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       
       // First check if user exists to provide better error message
-      const { data: existingUser } = await supabase
+      const { data: existingUsers, error: queryError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('email', email)
-        .maybeSingle();
+        .eq('email', email);
         
-      if (existingUser) {
+      if (queryError) {
+        console.error("Error checking existing user:", queryError);
+      }
+        
+      if (existingUsers && existingUsers.length > 0) {
         throw new Error("User with this email already exists");
       }
       
@@ -97,10 +101,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
+          .eq('id', data.user.id);
           
-        if (!profileData && !profileError) {
+        if ((!profileData || profileData.length === 0) && !profileError) {
           // Create profile manually if needed
           const { error: insertError } = await supabase
             .from('profiles')

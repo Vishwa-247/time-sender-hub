@@ -1,126 +1,140 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.21.0";
+import { Resend } from "https://esm.sh/resend@0.16.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') as string;
+const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') as string;
+
 serve(async (req) => {
-  // Handle CORS preflight request
-  if (req.method === "OPTIONS") {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Get current time
-    const now = new Date();
-    
-    // Get files scheduled for now or in the past that haven't been sent yet
-    const { data: filesToSend, error } = await supabaseAdmin
-      .from("scheduled_files")
-      .select("*")
-      .lte("scheduled_date", now.toISOString())
-      .eq("status", "pending");
-
-    if (error) {
-      throw error;
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
+      throw new Error('Missing Supabase environment variables');
     }
 
-    console.log(`Found ${filesToSend?.length || 0} files to send`);
+    if (!RESEND_API_KEY) {
+      throw new Error('Missing Resend API key');
+    }
 
-    // Process each file
-    const processedFiles = [];
+    // Initialize Supabase client with service role for admin access
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+    const resend = new Resend(RESEND_API_KEY);
+
+    // Get current date
+    const now = new Date();
+    const today = now.toISOString();
+
+    console.log("Checking for files scheduled to be sent before:", today);
+
+    // Query for files that are scheduled to be sent
+    const { data: filesToSend, error: filesError } = await supabase
+      .from('scheduled_files')
+      .select('*')
+      .eq('status', 'pending')
+      .lte('scheduled_date', today);
+      
+    if (filesError) {
+      throw new Error(`Error fetching scheduled files: ${filesError.message}`);
+    }
     
+    console.log(`Found ${filesToSend?.length || 0} files to send`);
+    
+    const results = [];
+    
+    // For each file, generate a signed URL and send an email
     for (const file of filesToSend || []) {
       try {
-        // Get the request URL to determine base URL for access links
-        const baseUrl = new URL(req.url).origin;
-        // Use the request origin if available, otherwise use the base URL from request
-        const origin = req.headers.get("origin") || baseUrl;
-        const accessUrl = `${origin}/access/${file.access_token}`;
-
-        console.log(`Sending file ${file.file_name} to ${file.recipient_email}`);
-        console.log(`Access URL: ${accessUrl}`);
-
-        // Send email with link using Deno fetch API
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            from: "TimeCapsule <onboarding@resend.dev>",
-            to: file.recipient_email,
-            subject: `Your scheduled file "${file.file_name}" is ready`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #3b82f6;">Your Time Capsule file is ready!</h1>
-                <p>The file you scheduled is now available to download:</p>
-                <p><strong>${file.file_name}</strong></p>
-                <div style="margin: 30px 0;">
-                  <a href="${accessUrl}" 
-                     style="background-color: #3b82f6; color: white; padding: 12px 20px; 
-                            text-decoration: none; border-radius: 5px; font-weight: bold;">
-                    Access Your File
-                  </a>
-                </div>
-                <p style="color: #6b7280; font-size: 14px;">
-                  This link will give you access to your file. For security, don't share this link with others.
-                </p>
+        console.log(`Processing file: ${file.id}`);
+        
+        // Generate access URL
+        const accessUrl = `${req.url.split('/functions/')[0]}/access/${file.access_token}`;
+        
+        // Send email
+        const emailResult = await resend.emails.send({
+          from: 'TimeCapsule <onboarding@resend.dev>',
+          to: [file.recipient_email],
+          subject: `You have a file delivery from TimeCapsule`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #3b82f6;">Your TimeCapsule File Is Ready</h1>
+              <p>Hello,</p>
+              <p>A file has been shared with you through TimeCapsule, and it's now ready for you to access.</p>
+              <p><strong>File Name:</strong> ${file.file_name}</p>
+              <p><strong>File Size:</strong> ${Math.round(file.file_size / 1024)} KB</p>
+              <div style="margin: 30px 0;">
+                <a href="${accessUrl}" style="background-color: #3b82f6; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                  Access Your File
+                </a>
               </div>
-            `
-          })
+              <p style="opacity: 0.7; font-size: 14px;">This link will expire in 24 hours for security reasons.</p>
+              <p style="opacity: 0.7; font-size: 14px;">TimeCapsule - Schedule files for future delivery</p>
+            </div>
+          `,
         });
-
-        const emailResult = await emailResponse.json();
-        console.log("Email sending result:", emailResult);
-
-        if (!emailResponse.ok) {
-          throw new Error(`Failed to send email: ${JSON.stringify(emailResult)}`);
-        }
-
+        
+        console.log(`Email sent for file ${file.id}:`, emailResult);
+        
         // Update file status to sent
-        const { error: updateError } = await supabaseAdmin
-          .from("scheduled_files")
-          .update({ status: "sent" })
-          .eq("id", file.id);
-
+        const { error: updateError } = await supabase
+          .from('scheduled_files')
+          .update({
+            status: 'sent',
+            updated_at: now.toISOString()
+          })
+          .eq('id', file.id);
+          
         if (updateError) {
-          throw updateError;
+          throw new Error(`Error updating file status: ${updateError.message}`);
         }
-
-        processedFiles.push(file.id);
-      } catch (fileError) {
+        
+        results.push({
+          fileId: file.id,
+          status: 'sent',
+          emailId: emailResult.id
+        });
+      } catch (fileError: any) {
         console.error(`Error processing file ${file.id}:`, fileError);
         
         // Update file status to failed
-        await supabaseAdmin
-          .from("scheduled_files")
-          .update({ status: "failed" })
-          .eq("id", file.id);
+        await supabase
+          .from('scheduled_files')
+          .update({
+            status: 'failed',
+            updated_at: now.toISOString()
+          })
+          .eq('id', file.id);
+          
+        results.push({
+          fileId: file.id,
+          status: 'failed',
+          error: fileError.message
+        });
       }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${processedFiles.length} files`,
-        processed: processedFiles,
+        processed: results.length,
+        results: results
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in send-scheduled-file function:", error);
     
     return new Response(
@@ -130,7 +144,7 @@ serve(async (req) => {
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }

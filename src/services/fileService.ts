@@ -196,6 +196,10 @@ export const getFileByToken = async (token: string): Promise<{
       return null;
     }
     
+    if (!data) {
+      return null;
+    }
+    
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
