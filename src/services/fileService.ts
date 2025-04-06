@@ -218,20 +218,44 @@ export const getFileByToken = async (token: string): Promise<{
 
 export const triggerFileSending = async (): Promise<void> => {
   try {
+    toast.info("Triggering file sending...");
+    
+    // Get the correct URL for the function using the Supabase client's URL
+    const SUPABASE_URL = supabase.supabaseUrl;
+    const functionPath = `${SUPABASE_URL}/functions/v1/send-scheduled-file`;
+    
+    console.log("Calling function at:", functionPath);
+    
+    // Use supabase functions invoke with proper error handling
     const { data, error } = await supabase.functions.invoke('send-scheduled-file', {
       method: 'POST',
-      body: {}
+      body: {},
     });
     
     if (error) {
+      console.error("Error invoking function:", error);
       toast.error(`Failed to trigger file sending: ${error.message}`);
       throw error;
     }
     
-    toast.success("File sending triggered successfully");
+    toast.success("Files processed successfully");
     console.log("File sending result:", data);
+    
+    // Return the processed files to refresh the UI
+    return data;
   } catch (error: any) {
     console.error("Error triggering file sending:", error);
-    toast.error(`Error triggering file sending: ${error.message}`);
+    toast.error(`Error triggering file sending: ${error.message || "Unknown error"}`);
+    
+    // If we can determine this is a connection error, provide a clearer message
+    if (error.message && (
+      error.message.includes("Failed to fetch") || 
+      error.message.includes("Network") ||
+      error.message.includes("CORS")
+    )) {
+      toast.error("Cannot connect to the edge function. Please check your network connection or contact support.");
+    }
+    
+    throw error;
   }
 };

@@ -15,9 +15,16 @@ serve(async (req) => {
   try {
     console.log("Cron job triggered at:", new Date().toISOString());
     
+    // Get the current URL to determine the base URL for the send-scheduled-file function
+    const url = new URL(req.url);
+    const baseUrl = url.origin;
+    const functionUrl = `${baseUrl}/functions/v1/send-scheduled-file`;
+    
+    console.log("Calling send-scheduled-file function at:", functionUrl);
+    
     // Call the send-scheduled-file function
     const sendScheduledRes = await fetch(
-      `${new URL(req.url).origin}/functions/v1/send-scheduled-file`,
+      functionUrl,
       {
         method: "POST",
         headers: {

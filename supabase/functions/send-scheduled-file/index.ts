@@ -57,8 +57,8 @@ serve(async (req) => {
         console.log(`Processing file: ${file.id} - ${file.file_name} to ${file.recipient_email}`);
         
         // Generate access URL - use the request URL to determine the base URL
-        const baseUrl = req.url.split('/functions/')[0];
-        const accessUrl = `${baseUrl}/access/${file.access_token}`;
+        const baseUrl = new URL(req.url).origin;
+        const accessUrl = `${baseUrl.replace("/functions/v1/send-scheduled-file", "")}/access/${file.access_token}`;
         
         console.log(`Generated access URL: ${accessUrl}`);
         
