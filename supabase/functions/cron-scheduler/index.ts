@@ -20,16 +20,25 @@ serve(async (req) => {
   try {
     console.log("Cron job triggered at:", new Date().toISOString());
     
-    // Instead of constructing a URL, use the Supabase Functions SDK
-    const { data: sendScheduledData, error: sendScheduledError } = await supabase.functions.invoke('send-scheduled-file', {
-      method: 'POST',
+    // Make a direct HTTP request to the send-scheduled-file function
+    const functionsUrl = `${supabaseUrl}/functions/v1/send-scheduled-file`;
+    console.log("Calling function at URL:", functionsUrl);
+    
+    const response = await fetch(functionsUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`
+      }
     });
 
-    if (sendScheduledError) {
-      console.error("Error calling send-scheduled-file:", sendScheduledError);
-      throw new Error(`Failed to call send-scheduled-file: ${sendScheduledError.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response from send-scheduled-file:", errorText);
+      throw new Error(`Failed to call send-scheduled-file: ${response.status} ${response.statusText}`);
     }
 
+    const sendScheduledData = await response.json();
     console.log("Send scheduled function result:", sendScheduledData);
 
     return new Response(

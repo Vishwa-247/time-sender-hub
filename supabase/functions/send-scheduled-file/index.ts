@@ -46,7 +46,7 @@ async function processScheduledFiles() {
       throw error;
     }
     
-    console.log(`Found ${files?.length || 0} files to process`);
+    console.log(`Found ${files?.length || 0} files to process`, files);
     
     if (!files || files.length === 0) {
       return { processed: 0, message: "No files ready to be sent" };

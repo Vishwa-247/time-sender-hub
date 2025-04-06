@@ -220,16 +220,30 @@ export const triggerFileSending = async (): Promise<void> => {
   try {
     toast.info("Triggering file sending...");
     
-    // Use direct function invocation with supabase client
-    const { data, error } = await supabase.functions.invoke('send-scheduled-file', {
-      method: 'POST',
+    // Using the Supabase URL from the client to construct the function URL
+    const functionUrl = "https://limzhusojiirnsefkupe.supabase.co/functions/v1/send-scheduled-file";
+    console.log("Calling function at URL:", functionUrl);
+    
+    const { data: authData } = await supabase.auth.getSession();
+    const accessToken = authData.session?.access_token;
+    
+    // Make a direct fetch request to the function
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": accessToken ? `Bearer ${accessToken}` : "",
+      }
     });
     
-    if (error) {
-      console.error("Error invoking function:", error);
-      toast.error(`Failed to trigger file sending: ${error.message}`);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response from send-scheduled-file:", errorText);
+      throw new Error(`Failed to trigger file sending: ${response.status} ${response.statusText}`);
     }
+    
+    const data = await response.json();
+    console.log("File sending result:", data);
     
     if (data?.processed === 0) {
       toast.info("No files were ready to be sent at this time");
@@ -241,8 +255,6 @@ export const triggerFileSending = async (): Promise<void> => {
     } else {
       toast.info("No changes were made to any files");
     }
-    
-    console.log("File sending result:", data);
     
     return data;
   } catch (error: any) {
