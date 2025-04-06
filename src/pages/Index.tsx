@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, Clock, Mail, Shield, Settings, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,15 @@ import Navbar from "@/components/Navbar";
 
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const howItWorksRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  const scrollToHowItWorks = () => {
+    howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,18 +52,20 @@ const Index = () => {
                   Get Started
                 </Button>
               </Link>
-              <Link to="/auth">
-                <Button variant="outline" className="hero-button w-full sm:w-auto">
-                  Learn More
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                className="hero-button w-full sm:w-auto"
+                onClick={scrollToHowItWorks}
+              >
+                Learn More
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="section bg-secondary/50">
+      <section ref={howItWorksRef} className="section bg-secondary/50">
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
@@ -156,7 +163,7 @@ const Index = () => {
             </div>
             
             <div className="relative">
-              <div className="glass-card rounded-2xl shadow-lg p-6 md:p-8 max-w-md mx-auto">
+              <div className="glass-card rounded-2xl shadow-lg p-6 md:p-8 max-w-md mx-auto bg-card text-card-foreground dark:bg-gray-800/80">
                 <div className="absolute -top-4 -right-4 bg-primary text-white text-xs px-3 py-1 rounded-full">
                   Dashboard Preview
                 </div>
@@ -170,17 +177,17 @@ const Index = () => {
                 
                 <div className="space-y-3">
                   {[1, 2, 3].map((item) => (
-                    <div key={item} className="rounded-lg bg-white p-3 shadow-sm border border-border">
+                    <div key={item} className="rounded-lg bg-secondary/30 dark:bg-gray-700/50 p-3 shadow-sm border border-border">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-medium">Project Proposal.pdf</p>
                           <p className="text-xs text-muted-foreground">To: client@example.com</p>
                         </div>
-                        <div className="rounded-full bg-secondary py-1 px-2 text-xs">
+                        <div className="rounded-full bg-gray-200 dark:bg-gray-600 py-1 px-2 text-xs">
                           Tomorrow
                         </div>
                       </div>
-                      <div className="w-full bg-secondary rounded-full h-1.5">
+                      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
                         <div 
                           className="bg-primary h-1.5 rounded-full" 
                           style={{ width: `${90 - (item * 30)}%` }}
@@ -218,8 +225,11 @@ const Index = () => {
         <div className="container-custom">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-6 md:mb-0">
-              <Link to="/" className="text-xl font-medium flex items-center">
-                <Calendar className="h-6 w-6 text-primary mr-2" />
+              <Link
+                to="/"
+                className="text-xl font-medium flex items-center space-x-2"
+              >
+                <Calendar className="h-6 w-6 text-primary" />
                 <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   TimeCapsule
                 </span>
