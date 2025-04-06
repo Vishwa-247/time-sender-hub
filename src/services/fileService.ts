@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -319,6 +320,8 @@ export const triggerFileSending = async (): Promise<any> => {
         if (data?.failed > 0) {
           toast.error(`Failed to process ${data.failed} file(s)`);
         }
+      } else if (data?.failed > 0) {
+        toast.error(`Failed to process ${data.failed} file(s)`);
       } else {
         toast.info("No changes were made to any files");
       }
@@ -332,7 +335,7 @@ export const triggerFileSending = async (): Promise<any> => {
     if (error.message?.includes("Failed to fetch") || 
         error.message?.includes("Network") ||
         error.message?.includes("CORS")) {
-      toast.error("Cannot connect to the Edge Function. This is expected in the development environment unless you're running the Supabase Edge Functions locally.");
+      toast.error("Cannot connect to the Edge Function. Please check your network connection.");
       console.log("To run Edge Functions locally, use: supabase functions serve");
     } else {
       toast.error(`Error triggering file sending: ${error.message || "Unknown error"}`);

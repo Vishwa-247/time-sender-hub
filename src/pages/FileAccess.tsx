@@ -130,6 +130,7 @@ const FileAccess = () => {
                     download={fileData?.fileName}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => toast.success("File download started")}
                   >
                     <Download className="mr-2 h-5 w-5" />
                     Download File
