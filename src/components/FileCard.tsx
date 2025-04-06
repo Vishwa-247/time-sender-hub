@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText } from 'lucide-react';
@@ -28,6 +27,7 @@ export interface FileItem {
   scheduledDate: Date;
   status: 'pending' | 'sent' | 'failed';
   progress?: number;
+  createdAt?: Date;
 }
 
 interface FileCardProps {
@@ -43,13 +43,10 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   const isDarkMode = theme === 'dark';
 
   useEffect(() => {
-    // Only update progress for pending files
     if (file.status === 'pending') {
       calculateProgress();
       
-      // Set an interval to update progress
-      const interval = setInterval(calculateProgress, 30000); // Update every 30 seconds
-      
+      const interval = setInterval(calculateProgress, 30000);
       return () => clearInterval(interval);
     } else if (file.status === 'sent') {
       setProgress(100);
@@ -60,20 +57,17 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
 
   const calculateProgress = () => {
     const now = new Date();
-    const createdAt = file.createdAt || new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default to 24h ago if not specified
+    const createdAt = file.createdAt || new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const scheduledDate = file.scheduledDate;
     
-    // If the scheduled date is in the past, set progress to 100
     if (scheduledDate < now) {
       setProgress(100);
       return;
     }
     
-    // Calculate total duration and elapsed time
     const totalDuration = scheduledDate.getTime() - createdAt.getTime();
     const elapsedTime = now.getTime() - createdAt.getTime();
     
-    // Calculate progress percentage
     const calculatedProgress = Math.min(Math.round((elapsedTime / totalDuration) * 100), 99);
     setProgress(calculatedProgress);
   };

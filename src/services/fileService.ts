@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -163,7 +164,7 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       recipient: item.recipient_email,
       scheduledDate: new Date(item.scheduled_date),
       status: item.status as "pending" | "sent" | "failed",
-      createdAt: new Date(item.created_at)
+      createdAt: new Date(item.created_at) // Ensuring createdAt is properly passed
     }));
   } catch (error: any) {
     console.error("Error fetching scheduled files:", error);

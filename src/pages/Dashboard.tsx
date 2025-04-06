@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Filter, Plus, Loader2, Search, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ const Dashboard = () => {
   const [filteredFiles, setFilteredFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]); // Added missing statusFilter state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
   const [activeTab, setActiveTab] = useState("all");
