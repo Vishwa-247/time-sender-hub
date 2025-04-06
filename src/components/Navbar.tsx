@@ -120,11 +120,7 @@ const Navbar = () => {
               >
                 <LogOut className="h-5 w-5" />
               </Button>
-              <Link to="/dashboard">
-                <Button className="bg-primary hover:bg-primary/90">
-                  Dashboard
-                </Button>
-              </Link>
+              {/* Removed dashboard button that was here */}
             </>
           ) : (
             <>
