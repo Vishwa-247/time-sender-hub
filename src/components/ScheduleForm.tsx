@@ -52,18 +52,15 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
     setSelectedFile(file);
   };
 
-  // Function to truncate text with an ellipsis
   const truncateText = (text: string, maxLength: number) => {
     if (!text || text.length <= maxLength) return text;
     const filename = text.split('/').pop() || text;
     
-    // If filename itself is already shorter than maxLength, return it
     if (filename.length <= maxLength) return filename;
     
     const extension = filename.includes('.') ? filename.split('.').pop() || '' : '';
     const name = filename.includes('.') ? filename.substring(0, filename.lastIndexOf('.')) : filename;
     
-    // If we have an extension, leave room for it in the truncated result
     const truncatedName = extension 
       ? name.substring(0, maxLength - extension.length - 4) + '...' 
       : name.substring(0, maxLength - 3) + '...';
@@ -82,12 +79,10 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
       return;
     }
 
-    // Combine date and time
     const [hours, minutes] = data.scheduledTime.split(":").map(Number);
     const scheduledDateTime = new Date(date);
     scheduledDateTime.setHours(hours, minutes, 0, 0);
 
-    // Check if date is in the past
     if (scheduledDateTime < new Date()) {
       toast.error("Scheduled time cannot be in the past");
       return;
@@ -105,10 +100,8 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
       formData.file = selectedFile;
     }
 
-    // Show info notification about current limitations
     setShowInfo(true);
     
-    // Submit the form data
     onSubmit(formData);
     
     if (!editingFile) {
@@ -128,11 +121,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
         <Alert className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <p>Email delivery is in testing mode. The file has been scheduled, but emails might not be delivered if:</p>
+            <p>Email delivery setup complete! Your file has been scheduled for delivery.</p>
+            <p className="mt-2">If you don't receive the email when scheduled:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>The Resend API key is not configured</li>
-              <li>You're using a free Resend account without domain verification</li>
-              <li>The recipient email address is not in your verified contacts (for free tier)</li>
+              <li>Check if your Resend domain (timecapsule.example.com) is properly verified</li>
+              <li>For free Resend accounts, verify that the recipient is in your verified contacts</li>
+              <li>Check the Edge Function logs in Supabase for any error details</li>
             </ul>
           </AlertDescription>
         </Alert>
@@ -199,7 +193,7 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
           <p className="text-sm text-destructive">{errors.recipient.message}</p>
         )}
         <p className="text-xs text-muted-foreground mt-1">
-          Tip: For free Resend accounts, the recipient must be added to your verified contacts list at <a href="https://resend.com/contacts" target="_blank" rel="noopener noreferrer" className="underline">resend.com/contacts</a>
+          Note: You've configured the sender as "TimeCapsule &lt;team@timecapsule.example.com&gt;". Make sure this domain is verified in Resend or emails might not be delivered.
         </p>
       </div>
 
