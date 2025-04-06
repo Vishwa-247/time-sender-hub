@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') as string;
 const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') as string;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || "re_LRWu8oUW_9tBaMFXDvpeeadE3doRYQALJ";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -23,10 +23,8 @@ serve(async (req) => {
       throw new Error('Missing Supabase environment variables');
     }
 
-    if (!RESEND_API_KEY) {
-      throw new Error('Missing Resend API key');
-    }
-
+    console.log("Initializing with Resend API key:", RESEND_API_KEY ? "API key is set" : "API key is missing");
+    
     // Initialize Supabase client with service role for admin access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
     const resend = new Resend(RESEND_API_KEY);

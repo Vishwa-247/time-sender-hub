@@ -69,27 +69,6 @@ admin_key = "firebase_admin::{service_account_secret_name}"
 enabled = false
 jwks_url = ""
 
-# Uncomment to configure email templates
-# [auth.email.template.confirmation]
-# subject = "Confirm Your Email"
-# content_path = "./supabase/templates/email_confirmation.html"
-#
-# [auth.email.template.recovery]
-# subject = "Reset Your Password"
-# content_path = "./supabase/templates/email_recovery.html"
-#
-# [auth.email.template.magic_link]
-# subject = "Your Magic Link"
-# content_path = "./supabase/templates/email_magic_link.html"
-#
-# [auth.email.template.email_change]
-# subject = "Confirm Your Email Change"
-# content_path = "./supabase/templates/email_change.html"
-#
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/email_invite.html"
-
 [analytics]
 enabled = false
 port = 54327
@@ -109,15 +88,10 @@ postgres_meta = false
 # Port to use for Edge Functions emulator.
 port = 54321
 
-# Uncomment to enable Edge Functions metrics
-[experimental.functions.metrics]
-# enabled = true
-# port = 54330
-
-# Uncomment to enable Edge Functions JIT compilation
-# [experimental.functions.jit]
-# enabled = true
-
 [experimental.functions.send-scheduled-file]
+# Set verify_jwt = false to avoid having to provide an auth token
+verify_jwt = false
+
+[experimental.functions.cron-scheduler]
 # Set verify_jwt = false to avoid having to provide an auth token
 verify_jwt = false
