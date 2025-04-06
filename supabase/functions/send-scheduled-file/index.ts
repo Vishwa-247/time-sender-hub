@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -40,7 +39,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
 
     console.log("Attempting to send email via Resend API...");
     
-    // Use the configured sender details from Resend
+    // Use the Resend onboarding address as the primary sender
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -48,7 +47,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
         "Authorization": `Bearer ${RESEND_API_KEY}`
       },
       body: JSON.stringify({
-        from: "TimeCapsule <team@timecapsule.example.com>",
+        from: "TimeCapsule <onboarding@resend.dev>",
         to: [to],
         subject: subject,
         html: body,
@@ -73,34 +72,6 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
     if (!response.ok) {
       console.error("Email sending failed with status:", response.status);
       console.error("Error details:", JSON.stringify(result));
-      
-      // If this failed, try falling back to the onboarding address
-      if (response.status === 400 && (result?.error?.includes("domain") || responseText.includes("domain"))) {
-        console.log("Domain verification issue. Trying with onboarding@resend.dev...");
-        
-        const fallbackResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${RESEND_API_KEY}`
-          },
-          body: JSON.stringify({
-            from: "TimeCapsule <onboarding@resend.dev>",
-            to: [to],
-            subject: subject,
-            html: body,
-          })
-        });
-        
-        if (fallbackResponse.ok) {
-          console.log("Email sent successfully with fallback address!");
-          return true;
-        } else {
-          console.error("Fallback email sending also failed");
-          return false;
-        }
-      }
-      
       return false;
     }
     

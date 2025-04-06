@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Calendar as CalendarIcon, Clock, Mail, Info } from "lucide-react";
@@ -124,7 +125,7 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
             <p>Email delivery setup complete! Your file has been scheduled for delivery.</p>
             <p className="mt-2">If you don't receive the email when scheduled:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Check if your Resend domain (timecapsule.example.com) is properly verified</li>
+              <li>Check that your Resend API key is correctly set in Supabase Secrets</li>
               <li>For free Resend accounts, verify that the recipient is in your verified contacts</li>
               <li>Check the Edge Function logs in Supabase for any error details</li>
             </ul>
@@ -193,7 +194,7 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
           <p className="text-sm text-destructive">{errors.recipient.message}</p>
         )}
         <p className="text-xs text-muted-foreground mt-1">
-          Note: You've configured the sender as "TimeCapsule &lt;team@timecapsule.example.com&gt;". Make sure this domain is verified in Resend or emails might not be delivered.
+          Note: Emails will be sent from "TimeCapsule &lt;onboarding@resend.dev&gt;". If using a free Resend account, make sure to add recipient emails to your verified contacts in Resend.
         </p>
       </div>
 
