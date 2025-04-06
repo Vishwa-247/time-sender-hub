@@ -164,7 +164,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       recipient: item.recipient_email,
       scheduledDate: new Date(item.scheduled_date),
       status: item.status as "pending" | "sent" | "failed",
-      createdAt: new Date(item.created_at) // Ensuring createdAt is properly passed
+      createdAt: new Date(item.created_at),
+      access_token: item.access_token // Include access_token for file previews
     }));
   } catch (error: any) {
     console.error("Error fetching scheduled files:", error);

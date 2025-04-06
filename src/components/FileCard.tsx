@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText, Eye } from 'lucide-react';
 import { 
   Card,
   CardContent,
@@ -17,8 +16,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import FilePreview from './FilePreview';
 import { useTheme } from "next-themes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getFileByToken } from '@/services/fileService';
 
 export interface FileItem {
   id: string;
@@ -30,6 +32,7 @@ export interface FileItem {
   status: 'pending' | 'sent' | 'failed';
   progress?: number;
   createdAt?: Date;
+  access_token?: string;
 }
 
 interface FileCardProps {
@@ -41,6 +44,12 @@ interface FileCardProps {
 const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [progress, setProgress] = useState(file.progress || 0);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [filePreview, setFilePreview] = useState<{ name: string, type: string, url?: string }>({
+    name: file.name,
+    type: file.type
+  });
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
 
@@ -148,118 +157,163 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
     }
   };
   
+  const handleFilePreview = async () => {
+    setPreviewOpen(true);
+    
+    if (file.status === 'sent' && file.access_token) {
+      setIsLoadingPreview(true);
+      try {
+        const fileData = await getFileByToken(file.access_token);
+        if (fileData) {
+          setFilePreview({
+            name: file.name,
+            type: file.type,
+            url: fileData.fileUrl
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching file preview:", error);
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    } else {
+      setFilePreview({
+        name: file.name,
+        type: file.type
+      });
+    }
+  };
+  
   return (
-    <Card className="overflow-hidden border border-border bg-card text-card-foreground dark:border-border">
-      <CardHeader className="flex flex-row items-center justify-between p-4 pb-0">
-        <div className="flex items-center gap-3">
-          {getFileIcon()}
+    <>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <Card className="overflow-hidden border border-border bg-card text-card-foreground dark:border-border cursor-pointer" onClick={handleFilePreview}>
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-0">
+            <div className="flex items-center gap-3">
+              {getFileIcon()}
+              
+              <div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h3 className="font-medium text-base line-clamp-1 text-foreground">
+                        {truncateText(file.name, 20)}
+                      </h3>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{file.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <Badge className={`flex items-center h-6 ${getStatusColor(file.status)}`}>
+                {getStatusIcon(file.status)}
+                <span>{file.status === 'pending' ? 'Pending' : file.status === 'sent' ? 'Sent' : 'Failed'}</span>
+              </Badge>
+              
+              <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground ml-1" onClick={(e) => e.stopPropagation()}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground">
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFilePreview();
+                    }}
+                    className="text-foreground"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    <span>Preview</span>
+                  </DropdownMenuItem>
+                  {onEdit && file.status === 'pending' && (
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onEdit(file.id);
+                      }}
+                      className="text-foreground"
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit</span>
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onDelete(file.id);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </CardHeader>
           
-          <div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <h3 className="font-medium text-base line-clamp-1 text-foreground">
-                    {truncateText(file.name, 20)}
-                  </h3>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{file.name}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-          </div>
-        </div>
+          <CardContent className="p-4 pt-2">
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center text-muted-foreground">
+                <Mail className="h-4 w-4 mr-2" />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-foreground truncate max-w-[200px] inline-block">
+                        {file.recipient}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{file.recipient}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex items-center text-muted-foreground">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span className="text-foreground">
+                  {getDateFormatted()} at {format(file.scheduledDate, 'h:mm a')}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+          
+          <CardFooter className="p-4 pt-0">
+            <div className="w-full space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>
+                  {file.status === 'pending' 
+                    ? formatDistanceToNow(file.scheduledDate, { addSuffix: true })
+                    : file.status === 'sent'
+                    ? 'Delivered'
+                    : 'Failed'
+                  }
+                </span>
+              </div>
+              <Progress
+                value={progress} 
+                className="h-2 w-full bg-muted"
+                indicatorClassName={getProgressColor()}
+              />
+            </div>
+          </CardFooter>
+        </Card>
         
-        <div className="flex items-center">
-          <Badge className={`flex items-center h-6 ${getStatusColor(file.status)}`}>
-            {getStatusIcon(file.status)}
-            <span>{file.status === 'pending' ? 'Pending' : file.status === 'sent' ? 'Sent' : 'Failed'}</span>
-          </Badge>
-          
-          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground ml-1">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground">
-              {onEdit && file.status === 'pending' && (
-                <DropdownMenuItem 
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onEdit(file.id);
-                  }}
-                  className="text-foreground"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Edit</span>
-                </DropdownMenuItem>
-              )}
-              {onDelete && (
-                <DropdownMenuItem 
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onDelete(file.id);
-                  }}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="p-4 pt-2">
-        <div className="space-y-1.5 text-sm">
-          <div className="flex items-center text-muted-foreground">
-            <Mail className="h-4 w-4 mr-2" />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-foreground truncate max-w-[200px] inline-block">
-                    {file.recipient}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{file.recipient}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <div className="flex items-center text-muted-foreground">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span className="text-foreground">
-              {getDateFormatted()} at {format(file.scheduledDate, 'h:mm a')}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-      
-      <CardFooter className="p-4 pt-0">
-        <div className="w-full space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Progress</span>
-            <span>
-              {file.status === 'pending' 
-                ? formatDistanceToNow(file.scheduledDate, { addSuffix: true })
-                : file.status === 'sent'
-                ? 'Delivered'
-                : 'Failed'
-              }
-            </span>
-          </div>
-          <Progress
-            value={progress} 
-            className="h-2 w-full bg-muted"
-            indicatorClassName={getProgressColor()}
-          />
-        </div>
-      </CardFooter>
-    </Card>
+        <FilePreview file={filePreview} isLoading={isLoadingPreview} />
+      </Dialog>
+    </>
   );
 };
 
