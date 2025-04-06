@@ -167,6 +167,8 @@ async function sendEmail({
   apiKey: string;
 }): Promise<{ data: any; error: any }> {
   try {
+    console.log(`Attempting to send email to ${to} using Resend...`);
+    
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -174,7 +176,7 @@ async function sendEmail({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: "TimeCapsule <noreply@timecapsule.lol>",
+        from: "TimeCapsule <onboarding@resend.dev>", // Using Resend's default domain
         to: [to],
         subject: subject,
         html: body,
@@ -182,11 +184,13 @@ async function sendEmail({
     });
 
     const data = await res.json();
+    
     if (!res.ok) {
-      console.error("Resend API error:", data);
+      console.error("Resend API error response:", data);
       return { data: null, error: data };
     }
 
+    console.log("Email sent successfully with response:", data);
     return { data: data, error: null };
   } catch (error: any) {
     console.error("Error sending email:", error);
