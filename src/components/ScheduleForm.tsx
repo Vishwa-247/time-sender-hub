@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Calendar as CalendarIcon, Clock, Mail, Info } from "lucide-react";
@@ -129,7 +128,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
         <Alert className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Email delivery is in testing mode. The file has been scheduled, but email delivery might be delayed or fail.
+            <p>Email delivery is in testing mode. The file has been scheduled, but emails might not be delivered if:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li>The Resend API key is not configured</li>
+              <li>You're using a free Resend account without domain verification</li>
+              <li>The recipient email address is not in your verified contacts (for free tier)</li>
+            </ul>
           </AlertDescription>
         </Alert>
       )}
@@ -194,6 +198,9 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
         {errors.recipient && (
           <p className="text-sm text-destructive">{errors.recipient.message}</p>
         )}
+        <p className="text-xs text-muted-foreground mt-1">
+          Tip: For free Resend accounts, the recipient must be added to your verified contacts list at <a href="https://resend.com/contacts" target="_blank" rel="noopener noreferrer" className="underline">resend.com/contacts</a>
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

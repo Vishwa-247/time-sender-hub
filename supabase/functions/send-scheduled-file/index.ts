@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -40,8 +39,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
 
     console.log("Attempting to send email via Resend API...");
     
-    // First attempt with standard format
-    console.log("Attempting to send email with standard from format...");
+    // Using the Resend shared domain (onboarding@resend.dev)
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -75,52 +73,10 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       console.error("Email sending failed with status:", response.status);
       console.error("Error details:", JSON.stringify(result));
       
-      // Try with a different "from" format if the first attempt failed
-      if (response.status === 400 && (responseText.includes("from") || responseText.includes("sender"))) {
-        console.log("Trying with alternative from format...");
-        
-        const retryResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${RESEND_API_KEY}`
-          },
-          body: JSON.stringify({
-            from: "onboarding@resend.dev",
-            to: [to],
-            subject: subject,
-            html: body,
-          })
-        });
-        
-        const retryResponseText = await retryResponse.text();
-        console.log("Retry response status:", retryResponse.status);
-        console.log("Retry response body:", retryResponseText);
-        
-        let retryResult;
-        try {
-          retryResult = JSON.parse(retryResponseText);
-        } catch (e) {
-          console.error("Failed to parse retry response as JSON:", e);
-          retryResult = { error: "Failed to parse response" };
-        }
-        
-        console.log("Retry email API parsed response:", JSON.stringify(retryResult));
-        
-        if (!retryResponse.ok) {
-          console.error("Retry email sending failed with status:", retryResponse.status);
-          console.error("Retry error details:", JSON.stringify(retryResult));
-          return false;
-        }
-        
-        console.log("Email sent successfully with alternative format");
-        return true;
-      }
-      
       return false;
     }
     
-    console.log("Email sent successfully with standard format");
+    console.log("Email sent successfully!");
     return true;
   } catch (error) {
     console.error("Exception during email sending:", error);
