@@ -29,6 +29,8 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
     return false;
   }
   
+  console.log("RESEND_API_KEY exists (first 4 chars):", RESEND_API_KEY.substring(0, 4) + "...");
+  
   try {
     // Make sure we have a valid email address
     if (!to || !to.includes('@')) {

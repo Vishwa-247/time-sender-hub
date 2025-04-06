@@ -54,7 +54,20 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
   // Function to truncate text with an ellipsis
   const truncateText = (text: string, maxLength: number) => {
     if (!text || text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    const filename = text.split('/').pop() || text;
+    
+    // If filename itself is already shorter than maxLength, return it
+    if (filename.length <= maxLength) return filename;
+    
+    const extension = filename.includes('.') ? filename.split('.').pop() || '' : '';
+    const name = filename.includes('.') ? filename.substring(0, filename.lastIndexOf('.')) : filename;
+    
+    // If we have an extension, leave room for it in the truncated result
+    const truncatedName = extension 
+      ? name.substring(0, maxLength - extension.length - 4) + '...' 
+      : name.substring(0, maxLength - 3) + '...';
+    
+    return extension ? `${truncatedName}.${extension}` : truncatedName;
   };
 
   const processSubmit = (data: ScheduleFormData) => {
@@ -115,12 +128,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <p className="truncate max-w-full">
+                    <p className="truncate max-w-xs">
                       Selected: <span className="font-medium">{truncateText(selectedFile.name, 25)}</span>
                     </p>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{selectedFile.name}</p>
+                  <TooltipContent side="top" className="max-w-80">
+                    <p className="break-all">{selectedFile.name}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -134,12 +147,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-2 border border-input rounded-md bg-muted/30 text-sm truncate w-full">
+                <div className="p-2 border border-input rounded-md bg-muted/30 text-sm truncate w-full max-w-full break-all overflow-hidden">
                   {truncateText(editingFile.name, 30)}
                 </div>
               </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-72 break-all">{editingFile.name}</p>
+              <TooltipContent side="top" className="max-w-80">
+                <p className="break-all">{editingFile.name}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
