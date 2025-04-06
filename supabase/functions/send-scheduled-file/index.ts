@@ -22,9 +22,6 @@ if (!RESEND_API_KEY) {
   console.error("RESEND_API_KEY is not set in environment variables. Please add it to Supabase Secrets.");
 }
 
-// Get the allowed test email address 
-const ALLOWED_TEST_EMAIL = "eakeswar5@gmail.com";
-
 /**
  * Send an email using Resend API
  */
@@ -47,70 +44,50 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       console.error("Invalid recipient email address:", to);
       return false;
     }
-
-    // Check if we're in test mode with Resend
-    // If we are, we can only send to the verified email address
-    const actualRecipient = to === ALLOWED_TEST_EMAIL ? to : ALLOWED_TEST_EMAIL;
-    console.log(`Using actual recipient email: ${actualRecipient} (original: ${to})`);
     
     console.log("Attempting to send email via Resend API...");
     
-    const response = await callResendAPI(actualRecipient, subject, body, RESEND_API_KEY);
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`
+      },
+      body: JSON.stringify({
+        from: "TimeCapsule <onboarding@resend.dev>",
+        to: [to],
+        subject: subject,
+        html: body,
+      })
+    });
     
-    // If we had to redirect to the test email, but still want to report success
-    if (to !== actualRecipient && response) {
-      console.log(`NOTE: Email sent to test address ${actualRecipient} instead of ${to} due to Resend test mode limitations`);
+    // Log full response for debugging
+    console.log("Resend API response status:", response.status);
+    const responseText = await response.text();
+    console.log("Resend API response body:", responseText);
+    
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse response as JSON:", e);
+      result = { error: "Failed to parse response" };
     }
     
-    return response;
+    console.log("Email API parsed response:", JSON.stringify(result));
+    
+    if (!response.ok) {
+      console.error("Email sending failed with status:", response.status);
+      console.error("Error details:", JSON.stringify(result));
+      return false;
+    }
+    
+    console.log("Email sent successfully!");
+    return true;
   } catch (error) {
     console.error("Exception during email sending:", error);
     return false;
   }
-}
-
-/**
- * Make the actual API call to Resend
- */
-async function callResendAPI(to: string, subject: string, body: string, apiKey: string): Promise<boolean> {
-  // Using Resend's default onboarding address (this works without domain verification)
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      from: "TimeCapsule <onboarding@resend.dev>",
-      to: [to],
-      subject: subject,
-      html: body,
-    })
-  });
-  
-  // Log full response for debugging
-  console.log("Resend API response status:", response.status);
-  const responseText = await response.text();
-  console.log("Resend API response body:", responseText);
-  
-  let result;
-  try {
-    result = JSON.parse(responseText);
-  } catch (e) {
-    console.error("Failed to parse response as JSON:", e);
-    result = { error: "Failed to parse response" };
-  }
-  
-  console.log("Email API parsed response:", JSON.stringify(result));
-  
-  if (!response.ok) {
-    console.error("Email sending failed with status:", response.status);
-    console.error("Error details:", JSON.stringify(result));
-    return false;
-  }
-  
-  console.log("Email sent successfully!");
-  return true;
 }
 
 /**
@@ -121,21 +98,11 @@ async function getScheduledFiles() {
   const now = new Date();
   console.log(`Current time: ${now.toISOString()}`);
   
-  // Calculate time window (current minute)
-  const startTime = new Date(now);
-  startTime.setSeconds(0, 0); // Reset seconds and milliseconds
-  
-  const endTime = new Date(startTime);
-  endTime.setMinutes(endTime.getMinutes() + 1);
-  
-  console.log(`Looking for files scheduled between ${startTime.toISOString()} and ${endTime.toISOString()}`);
-  
-  // Fetch files ready to be sent (scheduled_date is in the current minute AND status = 'pending')
+  // Find files where scheduled date is in the past and status is still 'pending'
   const { data: files, error } = await supabase
     .from("scheduled_files")
     .select("*")
-    .gte("scheduled_date", startTime.toISOString())
-    .lt("scheduled_date", endTime.toISOString())
+    .lte("scheduled_date", now.toISOString())
     .eq("status", "pending");
     
   if (error) {

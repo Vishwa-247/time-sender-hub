@@ -29,11 +29,11 @@ const FilePreview = ({ file, isLoading }: FilePreviewProps) => {
     return (
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Preview not available</DialogTitle>
+          <DialogTitle>{file.name}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center py-6">
           <p className="text-muted-foreground text-center mb-4">
-            Preview is only available for files that have been sent to recipients.
+            This file hasn't been sent yet or preview is not available.
           </p>
         </div>
       </DialogContent>

@@ -36,6 +36,27 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
   return data.path;
 };
 
+export const getFilePreviewUrl = async (storagePath: string): Promise<string | null> => {
+  if (!storagePath) return null;
+  
+  try {
+    const { data, error } = await supabase
+      .storage
+      .from("timecapsule")
+      .createSignedUrl(storagePath, 60 * 5); // 5 minutes
+      
+    if (error || !data) {
+      console.error("Error creating signed URL for preview:", error);
+      return null;
+    }
+    
+    return data.signedUrl;
+  } catch (error) {
+    console.error("Error getting file preview URL:", error);
+    return null;
+  }
+};
+
 export const scheduleFile = async (params: ScheduleFileParams): Promise<void> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -165,7 +186,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       scheduledDate: new Date(item.scheduled_date),
       status: item.status as "pending" | "sent" | "failed",
       createdAt: new Date(item.created_at),
-      access_token: item.access_token // Include access_token for file previews
+      access_token: item.access_token, // Include access_token for file previews
+      storage_path: item.storage_path // Add storage path for previewing unsent files
     }));
   } catch (error: any) {
     console.error("Error fetching scheduled files:", error);
@@ -184,15 +206,10 @@ export const getFileByToken = async (token: string): Promise<{
       .from("scheduled_files")
       .select("*")
       .eq("access_token", token)
-      .eq("status", "sent")
       .single();
       
-    if (error) {
+    if (error || !data) {
       console.error("Error fetching file by token:", error);
-      return null;
-    }
-    
-    if (!data) {
       return null;
     }
     
@@ -213,6 +230,25 @@ export const getFileByToken = async (token: string): Promise<{
     };
   } catch (error: any) {
     console.error("Error fetching file by token:", error);
+    return null;
+  }
+};
+
+export const getFilePreviewByStoragePath = async (storagePath: string): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase
+      .storage
+      .from("timecapsule")
+      .createSignedUrl(storagePath, 60 * 5); // 5 minutes expiry
+      
+    if (error) {
+      console.error("Error creating signed URL for file preview:", error);
+      return null;
+    }
+    
+    return data?.signedUrl || null;
+  } catch (error) {
+    console.error("Error getting file preview by storage path:", error);
     return null;
   }
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText, Eye } from 'lucide-react';
@@ -20,7 +21,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import FilePreview from './FilePreview';
 import { useTheme } from "next-themes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getFileByToken } from '@/services/fileService';
+import { getFileByToken, getFilePreviewByStoragePath } from '@/services/fileService';
 
 export interface FileItem {
   id: string;
@@ -33,6 +34,7 @@ export interface FileItem {
   progress?: number;
   createdAt?: Date;
   access_token?: string;
+  storage_path?: string;
 }
 
 interface FileCardProps {
@@ -159,10 +161,11 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   
   const handleFilePreview = async () => {
     setPreviewOpen(true);
+    setIsLoadingPreview(true);
     
-    if (file.status === 'sent' && file.access_token) {
-      setIsLoadingPreview(true);
-      try {
+    try {
+      // First, check if the file has been sent, if so use the token to get URL
+      if (file.status === 'sent' && file.access_token) {
         const fileData = await getFileByToken(file.access_token);
         if (fileData) {
           setFilePreview({
@@ -170,17 +173,39 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
             type: file.type,
             url: fileData.fileUrl
           });
+          setIsLoadingPreview(false);
+          return;
         }
-      } catch (error) {
-        console.error("Error fetching file preview:", error);
-      } finally {
-        setIsLoadingPreview(false);
       }
-    } else {
+      
+      // If file hasn't been sent yet or token fetch failed, try to get a preview URL
+      if (file.storage_path) {
+        const previewUrl = await getFilePreviewByStoragePath(file.storage_path);
+        if (previewUrl) {
+          setFilePreview({
+            name: file.name,
+            type: file.type,
+            url: previewUrl
+          });
+          setIsLoadingPreview(false);
+          return;
+        }
+      }
+      
+      // If all else fails, show a basic preview without URL
       setFilePreview({
         name: file.name,
         type: file.type
       });
+      
+    } catch (error) {
+      console.error("Error fetching file preview:", error);
+      setFilePreview({
+        name: file.name,
+        type: file.type
+      });
+    } finally {
+      setIsLoadingPreview(false);
     }
   };
   

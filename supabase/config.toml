@@ -20,3 +20,4 @@ port = 54323
 [functions.cron-scheduler]
 verify_jwt = false
 schedule = "* * * * * *"  # Run every second
+
