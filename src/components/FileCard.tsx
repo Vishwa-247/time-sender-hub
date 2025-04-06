@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { 
@@ -38,8 +38,45 @@ interface FileCardProps {
 
 const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [progress, setProgress] = useState(file.progress || 0);
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+
+  useEffect(() => {
+    // Only update progress for pending files
+    if (file.status === 'pending') {
+      calculateProgress();
+      
+      // Set an interval to update progress
+      const interval = setInterval(calculateProgress, 30000); // Update every 30 seconds
+      
+      return () => clearInterval(interval);
+    } else if (file.status === 'sent') {
+      setProgress(100);
+    } else {
+      setProgress(0);
+    }
+  }, [file]);
+
+  const calculateProgress = () => {
+    const now = new Date();
+    const createdAt = file.createdAt || new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default to 24h ago if not specified
+    const scheduledDate = file.scheduledDate;
+    
+    // If the scheduled date is in the past, set progress to 100
+    if (scheduledDate < now) {
+      setProgress(100);
+      return;
+    }
+    
+    // Calculate total duration and elapsed time
+    const totalDuration = scheduledDate.getTime() - createdAt.getTime();
+    const elapsedTime = now.getTime() - createdAt.getTime();
+    
+    // Calculate progress percentage
+    const calculatedProgress = Math.min(Math.round((elapsedTime / totalDuration) * 100), 99);
+    setProgress(calculatedProgress);
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -134,7 +171,7 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground">
-              {onEdit && (
+              {onEdit && file.status === 'pending' && (
                 <DropdownMenuItem 
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -192,7 +229,7 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
             </span>
           </div>
           <Progress
-            value={file.progress || 0} 
+            value={progress} 
             className="h-2 w-full bg-muted"
             indicatorClassName={getProgressColor()}
           />

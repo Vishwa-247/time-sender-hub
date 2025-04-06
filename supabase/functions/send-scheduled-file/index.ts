@@ -23,7 +23,8 @@ serve(async (req) => {
       throw new Error('Missing Supabase environment variables');
     }
 
-    console.log("Initializing with Resend API key:", RESEND_API_KEY ? "API key is set" : "API key is missing");
+    console.log("Starting scheduled file sending with Resend API key:", 
+      RESEND_API_KEY ? "API key is set" : "API key is missing");
     
     // Initialize Supabase client with service role for admin access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
@@ -53,10 +54,13 @@ serve(async (req) => {
     // For each file, generate a signed URL and send an email
     for (const file of filesToSend || []) {
       try {
-        console.log(`Processing file: ${file.id}`);
+        console.log(`Processing file: ${file.id} - ${file.file_name} to ${file.recipient_email}`);
         
-        // Generate access URL
-        const accessUrl = `${req.url.split('/functions/')[0]}/access/${file.access_token}`;
+        // Generate access URL - use the request URL to determine the base URL
+        const baseUrl = req.url.split('/functions/')[0];
+        const accessUrl = `${baseUrl}/access/${file.access_token}`;
+        
+        console.log(`Generated access URL: ${accessUrl}`);
         
         // Send email
         const emailResult = await resend.emails.send({

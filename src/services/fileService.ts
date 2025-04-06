@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -99,7 +98,6 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
 
 export const deleteScheduledFile = async (id: string): Promise<void> => {
   try {
-    // Get storage path before deleting the record
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("storage_path")
@@ -111,7 +109,6 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       throw error;
     }
     
-    // Delete from storage
     const { error: storageError } = await supabase
       .storage
       .from("timecapsule")
@@ -119,10 +116,8 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       
     if (storageError) {
       console.error("Error removing file from storage:", storageError);
-      // Continue with the database deletion even if storage deletion fails
     }
     
-    // Delete from database
     const { error: dbError } = await supabase
       .from("scheduled_files")
       .delete()
@@ -183,7 +178,6 @@ export const getFileByToken = async (token: string): Promise<{
   fileUrl: string;
 } | null> => {
   try {
-    // No authentication needed for token-based access
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("*")
@@ -203,7 +197,7 @@ export const getFileByToken = async (token: string): Promise<{
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
-      .createSignedUrl(data.storage_path, 60 * 60 * 24); // 24 hour expiry for better user experience
+      .createSignedUrl(data.storage_path, 60 * 60 * 24);
       
     if (fileError) {
       console.error("Error creating signed URL:", fileError);
@@ -221,7 +215,6 @@ export const getFileByToken = async (token: string): Promise<{
   }
 };
 
-// Add function to manually trigger file sending (for testing)
 export const triggerFileSending = async (): Promise<void> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-scheduled-file', {

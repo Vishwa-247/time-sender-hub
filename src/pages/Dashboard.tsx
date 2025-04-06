@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
-import { Filter, Plus, Loader2, Search } from "lucide-react";
+import { Filter, Plus, Loader2, Search, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
@@ -11,7 +10,7 @@ import FileCard, { FileItem } from "@/components/FileCard";
 import ScheduleForm, { ScheduleFormData } from "@/components/ScheduleForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
-import { getScheduledFiles, scheduleFile, updateScheduledFile, deleteScheduledFile } from "@/services/fileService";
+import { getScheduledFiles, scheduleFile, updateScheduledFile, deleteScheduledFile, triggerFileSending } from "@/services/fileService";
 
 const Dashboard = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -21,9 +20,6 @@ const Dashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
   const [activeTab, setActiveTab] = useState("all");
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -57,7 +53,6 @@ const Dashboard = () => {
   const filterFiles = () => {
     let filtered = [...files];
     
-    // Apply tab filter
     if (activeTab === "pending") {
       filtered = filtered.filter(file => file.status === "pending");
     } else if (activeTab === "sent") {
@@ -66,12 +61,10 @@ const Dashboard = () => {
       filtered = filtered.filter(file => file.status === "failed");
     }
     
-    // Apply status filter if selected
     if (statusFilter.length > 0) {
       filtered = filtered.filter(file => statusFilter.includes(file.status));
     }
     
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -184,6 +177,23 @@ const Dashboard = () => {
     setStatusFilter([]);
   };
 
+  const handleManualTrigger = async () => {
+    try {
+      setIsLoading(true);
+      await triggerFileSending();
+      await fetchFiles();
+    } catch (error) {
+      console.error("Error triggering file sending:", error);
+      toast({
+        title: "Error",
+        description: "Failed to trigger file sending",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-12">
       <Navbar />
@@ -195,16 +205,27 @@ const Dashboard = () => {
             <p className="text-muted-foreground mt-1">Manage and schedule your file deliveries</p>
           </div>
           
-          <Button 
-            onClick={() => {
-              setEditingFile(null);
-              setIsDialogOpen(true);
-            }} 
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4 mr-2" /> 
-            Schedule New File
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => {
+                setEditingFile(null);
+                setIsDialogOpen(true);
+              }} 
+              className="bg-primary hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4 mr-2" /> 
+              Schedule New File
+            </Button>
+            
+            <Button 
+              onClick={handleManualTrigger} 
+              variant="outline"
+              disabled={isLoading}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Trigger Sending
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -313,6 +334,11 @@ const Dashboard = () => {
             <DialogTitle className="text-foreground">
               {editingFile ? "Edit Scheduled File" : "Schedule New File"}
             </DialogTitle>
+            <DialogDescription>
+              {editingFile 
+                ? "Update the recipient and schedule for this file." 
+                : "Upload a file and set when it should be delivered."}
+            </DialogDescription>
           </DialogHeader>
           <ScheduleForm 
             onSubmit={editingFile ? handleEditSchedule : handleNewSchedule}

@@ -13,6 +13,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Cron job triggered at:", new Date().toISOString());
+    
     // Call the send-scheduled-file function
     const sendScheduledRes = await fetch(
       `${new URL(req.url).origin}/functions/v1/send-scheduled-file`,
@@ -25,12 +27,20 @@ serve(async (req) => {
       }
     );
 
+    if (!sendScheduledRes.ok) {
+      const errorText = await sendScheduledRes.text();
+      console.error("Error calling send-scheduled-file:", errorText);
+      throw new Error(`Failed to call send-scheduled-file: ${sendScheduledRes.status} ${errorText}`);
+    }
+
     const sendScheduledData = await sendScheduledRes.json();
+    console.log("Send scheduled function result:", sendScheduledData);
 
     return new Response(
       JSON.stringify({
         message: "Cron job executed successfully",
         sendScheduledResult: sendScheduledData,
+        timestamp: new Date().toISOString(),
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -43,6 +53,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: error.message,
+        timestamp: new Date().toISOString(),
       }),
       {
         status: 500,
