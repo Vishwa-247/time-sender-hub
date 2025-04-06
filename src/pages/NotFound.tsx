@@ -1,5 +1,8 @@
-import { useLocation } from "react-router-dom";
+
+import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
   const location = useLocation();
@@ -12,14 +15,33 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
-      </div>
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <Link to="/" className="text-xl font-medium flex items-center space-x-2">
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              TimeCapsule
+            </span>
+          </Link>
+        </div>
+      </header>
+      
+      <main className="container mx-auto px-4 py-12">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="py-12 border border-dashed rounded-xl bg-background text-foreground">
+            <h2 className="text-4xl font-bold mb-4 text-foreground">404</h2>
+            <p className="text-xl text-muted-foreground mb-6">
+              Oops! The page you're looking for cannot be found.
+            </p>
+            <Button asChild>
+              <Link to="/" className="flex items-center">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Home
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
