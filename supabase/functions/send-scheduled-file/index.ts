@@ -29,6 +29,12 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
   }
   
   try {
+    // Make sure we have a valid email address
+    if (!to || !to.includes('@')) {
+      console.error("Invalid recipient email address:", to);
+      return false;
+    }
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -49,6 +55,37 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
     if (!response.ok) {
       console.error("Email sending failed with status:", response.status);
       console.error("Error details:", result);
+      
+      // Try with a different "from" format if the first attempt failed
+      if (response.status === 400 && result.message?.includes("from")) {
+        console.log("Trying with alternative from format...");
+        
+        const retryResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${RESEND_API_KEY}`
+          },
+          body: JSON.stringify({
+            from: "onboarding@resend.dev",
+            to: [to],
+            subject: subject,
+            html: body,
+          })
+        });
+        
+        const retryResult = await retryResponse.json();
+        console.log("Retry email API response:", retryResult);
+        
+        if (!retryResponse.ok) {
+          console.error("Retry email sending failed with status:", retryResponse.status);
+          console.error("Retry error details:", retryResult);
+          return false;
+        }
+        
+        return true;
+      }
+      
       return false;
     }
     

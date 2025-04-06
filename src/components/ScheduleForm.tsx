@@ -134,12 +134,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-2 border border-input rounded-md bg-muted/30 text-sm truncate">
-                  {truncateText(editingFile.name, 40)}
+                <div className="p-2 border border-input rounded-md bg-muted/30 text-sm truncate w-full">
+                  {truncateText(editingFile.name, 30)}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{editingFile.name}</p>
+                <p className="max-w-72 break-all">{editingFile.name}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
