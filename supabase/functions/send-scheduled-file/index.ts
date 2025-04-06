@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -39,7 +40,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
 
     console.log("Attempting to send email via Resend API...");
     
-    // Use the Resend onboarding address as the primary sender
+    // Using Resend's onboarding address since we don't have a custom domain
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
