@@ -87,6 +87,14 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     }
     
     toast.success("File scheduled successfully");
+    
+    // Automatically trigger the file sending process to check if it should be sent immediately
+    try {
+      await triggerFileSending();
+    } catch (triggerError) {
+      console.log("Non-critical error when triggering file sending:", triggerError);
+      // Non-critical error, don't rethrow
+    }
   } catch (error: any) {
     console.error("Error scheduling file:", error);
     toast.error(`Error scheduling file: ${error.message}`);
@@ -253,7 +261,7 @@ export const getFilePreviewByStoragePath = async (storagePath: string): Promise<
   }
 };
 
-export const triggerFileSending = async (): Promise<void> => {
+export const triggerFileSending = async (): Promise<any> => {
   try {
     toast.info("Triggering file sending...");
     

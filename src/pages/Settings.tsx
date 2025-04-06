@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Bell, Palette, LogOut, Check, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,11 @@ const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  
+  // Create refs for each section
+  const profileSectionRef = useRef<HTMLElement>(null);
+  const notificationsSectionRef = useRef<HTMLElement>(null);
+  const appearanceSectionRef = useRef<HTMLElement>(null);
   
   // Profile settings
   const [name, setName] = useState("");
@@ -80,6 +86,11 @@ const Settings = () => {
       setActiveAccentColor(storedColor);
     }
   }, []);
+  
+  // Scroll to section functions
+  const scrollToSection = (ref: React.RefObject<HTMLElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
+  };
   
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,15 +201,30 @@ const Settings = () => {
         <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-8">
           {/* Sidebar */}
           <div className="space-y-1 md:border-r border-border pr-6">
-            <Button variant="ghost" className="w-full justify-start" size="lg">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => scrollToSection(profileSectionRef)}
+            >
               <User className="h-4 w-4 mr-2" />
               <span>Profile</span>
             </Button>
-            <Button variant="ghost" className="w-full justify-start" size="lg">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => scrollToSection(notificationsSectionRef)}
+            >
               <Bell className="h-4 w-4 mr-2" />
               <span>Notifications</span>
             </Button>
-            <Button variant="ghost" className="w-full justify-start" size="lg">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => scrollToSection(appearanceSectionRef)}
+            >
               <Palette className="h-4 w-4 mr-2" />
               <span>Appearance</span>
             </Button>
@@ -217,7 +243,7 @@ const Settings = () => {
           {/* Main content */}
           <div className="space-y-12">
             {/* Profile Section */}
-            <section>
+            <section ref={profileSectionRef}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold flex items-center">
                   <User className="h-5 w-5 mr-2" />
@@ -323,7 +349,7 @@ const Settings = () => {
             <Separator />
             
             {/* Notifications Section */}
-            <section>
+            <section ref={notificationsSectionRef}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold flex items-center">
                   <Bell className="h-5 w-5 mr-2" />
@@ -386,7 +412,7 @@ const Settings = () => {
             <Separator />
             
             {/* Appearance Section */}
-            <section>
+            <section ref={appearanceSectionRef}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold flex items-center">
                   <Palette className="h-5 w-5 mr-2" />
