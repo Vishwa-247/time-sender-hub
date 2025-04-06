@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -13,7 +12,7 @@ const corsHeaders = {
 };
 
 // Get the app URL for the correct access link - IMPORTANT: Set this in Supabase Edge Function Secrets
-const APP_URL = Deno.env.get("APP_URL") || "http://localhost:5173";
+const APP_URL = Deno.env.get("APP_URL") || "https://limzhusojiirnsefkupe.supabase.co";
 console.log(`Using APP_URL: ${APP_URL}`);
 
 // Ensure Resend API key is available
@@ -119,8 +118,9 @@ async function getScheduledFiles() {
  * Generate access URL for a file
  */
 function generateAccessUrl(accessToken: string): string {
-  // Use the APP_URL environment variable for the correct link generation
-  return `${APP_URL}/access/${accessToken}`;
+  // Make sure the URL doesn't have double slashes between domain and path
+  const baseUrl = APP_URL.endsWith('/') ? APP_URL.slice(0, -1) : APP_URL;
+  return `${baseUrl}/access/${accessToken}`;
 }
 
 /**

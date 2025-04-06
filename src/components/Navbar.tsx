@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, Settings, User, LogIn, LogOut, Menu, X } from "lucide-react";
+import { Calendar, Settings, LogIn, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -10,6 +10,7 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const isLandingPage = location.pathname === "/";
+  const isAccessPage = location.pathname.includes("/access/");
   const { user, signOut } = useAuth();
 
   useEffect(() => {
@@ -24,6 +25,25 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Don't show full navigation on access pages
+  if (isAccessPage) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 glass-effect py-3">
+        <div className="container-custom flex items-center justify-between">
+          <Link
+            to="/"
+            className="text-xl font-medium flex items-center space-x-2"
+          >
+            <Calendar className="h-6 w-6 text-primary" />
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              TimeCapsule
+            </span>
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header
@@ -82,11 +102,6 @@ const Navbar = () => {
         <div className="flex items-center space-x-4">
           {user ? (
             <>
-              <Link to="/settings">
-                <Button variant="ghost" size="icon" aria-label="User settings">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
               <Button
                 variant="ghost"
                 className="hidden md:flex"
