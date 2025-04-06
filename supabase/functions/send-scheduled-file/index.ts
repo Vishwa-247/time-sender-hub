@@ -38,6 +38,8 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       return false;
     }
 
+    console.log("Attempting to send email via Resend API...");
+    
     // First attempt with standard format
     console.log("Attempting to send email with standard from format...");
     const response = await fetch("https://api.resend.com/emails", {
@@ -54,15 +56,27 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       })
     });
     
-    const result = await response.json();
-    console.log("Email API response:", JSON.stringify(result));
+    // Log full response for debugging
+    console.log("Resend API response status:", response.status);
+    const responseText = await response.text();
+    console.log("Resend API response body:", responseText);
+    
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse response as JSON:", e);
+      result = { error: "Failed to parse response" };
+    }
+    
+    console.log("Email API parsed response:", JSON.stringify(result));
     
     if (!response.ok) {
       console.error("Email sending failed with status:", response.status);
       console.error("Error details:", JSON.stringify(result));
       
       // Try with a different "from" format if the first attempt failed
-      if (response.status === 400 && result.message?.includes("from")) {
+      if (response.status === 400 && (responseText.includes("from") || responseText.includes("sender"))) {
         console.log("Trying with alternative from format...");
         
         const retryResponse = await fetch("https://api.resend.com/emails", {
@@ -79,8 +93,19 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
           })
         });
         
-        const retryResult = await retryResponse.json();
-        console.log("Retry email API response:", JSON.stringify(retryResult));
+        const retryResponseText = await retryResponse.text();
+        console.log("Retry response status:", retryResponse.status);
+        console.log("Retry response body:", retryResponseText);
+        
+        let retryResult;
+        try {
+          retryResult = JSON.parse(retryResponseText);
+        } catch (e) {
+          console.error("Failed to parse retry response as JSON:", e);
+          retryResult = { error: "Failed to parse response" };
+        }
+        
+        console.log("Retry email API parsed response:", JSON.stringify(retryResult));
         
         if (!retryResponse.ok) {
           console.error("Retry email sending failed with status:", retryResponse.status);
@@ -88,15 +113,17 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
           return false;
         }
         
+        console.log("Email sent successfully with alternative format");
         return true;
       }
       
       return false;
     }
     
+    console.log("Email sent successfully with standard format");
     return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Exception during email sending:", error);
     return false;
   }
 }
@@ -206,6 +233,8 @@ serve(async (req) => {
 
   try {
     console.log("Running scheduled file sending process...");
+    console.log("Environment check - APP_URL:", APP_URL);
+    console.log("RESEND_API_KEY exists:", !!Deno.env.get("RESEND_API_KEY"));
     
     const result = await processScheduledFiles();
     

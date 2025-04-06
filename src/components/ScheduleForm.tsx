@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Calendar as CalendarIcon, Clock, Mail } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Mail, Info } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import FileUpload from "./FileUpload";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ScheduleFormProps {
   onSubmit: (data: ScheduleFormData) => void;
@@ -35,6 +36,7 @@ export interface ScheduleFormData {
 const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [date, setDate] = useState<Date | undefined>(editingFile?.scheduledDate || undefined);
+  const [showInfo, setShowInfo] = useState(false);
   
   const defaultTime = editingFile?.scheduledDate 
     ? format(editingFile.scheduledDate, "HH:mm")
@@ -104,6 +106,10 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
       formData.file = selectedFile;
     }
 
+    // Show info notification about current limitations
+    setShowInfo(true);
+    
+    // Submit the form data
     onSubmit(formData);
     
     if (!editingFile) {
@@ -119,6 +125,15 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
+      {showInfo && (
+        <Alert className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Email delivery is in testing mode. The file has been scheduled, but email delivery might be delayed or fail.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {!editingFile && (
         <div className="space-y-2">
           <Label>File</Label>
