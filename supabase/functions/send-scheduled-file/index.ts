@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -29,6 +30,8 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
   let processedCount = 0;
 
   try {
+    console.log("Starting to process scheduled files at:", new Date().toISOString());
+    
     // Fetch all pending scheduled files
     const { data: scheduledFiles, error: selectError } = await supabaseClient
       .from("scheduled_files")
@@ -46,27 +49,34 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
       return { success: 0, failed: 0, processed: 0 };
     }
 
+    console.log(`Found ${scheduledFiles.length} files to process:`, scheduledFiles.map(f => ({ id: f.id, email: f.recipient_email, date: f.scheduled_date })));
     processedCount = scheduledFiles.length;
 
     // Process each scheduled file
     for (const file of scheduledFiles) {
       try {
+        console.log(`Processing file ${file.id} scheduled for ${file.scheduled_date} to ${file.recipient_email}`);
+        
         // Generate access URL
         const accessUrl = generateAccessUrl(file.access_token);
+        console.log(`Generated access URL: ${accessUrl}`);
 
         // Send email
         if (!RESEND_API_KEY) {
           throw new Error("Resend API key is missing.");
         }
 
+        console.log(`Sending email to ${file.recipient_email}`);
         const emailResult = await sendEmail({
           to: file.recipient_email,
           subject: "Your TimeCapsule File is Ready!",
           body: `
             <p>Hello!</p>
             <p>Your TimeCapsule file is now available. You can access it via the following link:</p>
-            <a href="${accessUrl}">${accessUrl}</a>
-            <p>This link will grant access to the file.</p>
+            <p><a href="${accessUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0;">Access Your File</a></p>
+            <p>If the button doesn't work, you can copy and paste this link in your browser:</p>
+            <p>${accessUrl}</p>
+            <p>Best regards,<br>TimeCapsule Team</p>
           `,
           apiKey: RESEND_API_KEY,
         });
@@ -74,11 +84,28 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         if (emailResult.error) {
           console.error(`Error sending email for file ${file.id}:`, emailResult.error);
           failedCount++;
+          
+          // Optionally, update file status to 'failed'
+          const { error: updateError } = await supabaseClient
+            .from("scheduled_files")
+            .update({ 
+              status: "failed", 
+              error_message: emailResult.error.message || "Failed to send email"
+            })
+            .eq("id", file.id);
+
+          if (updateError) {
+            console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+          }
         } else {
           // Update file status to 'sent'
           const { error: updateError } = await supabaseClient
             .from("scheduled_files")
-            .update({ status: "sent", sent_at: new Date().toISOString() })
+            .update({ 
+              status: "sent", 
+              sent_at: new Date().toISOString(),
+              email_id: emailResult.data?.id || null
+            })
             .eq("id", file.id);
 
           if (updateError) {
@@ -93,10 +120,13 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         console.error(`Error processing file ${file.id}:`, error);
         failedCount++;
 
-        // Optionally, update file status to 'failed'
+        // Update file status to 'failed'
         const { error: updateError } = await supabaseClient
           .from("scheduled_files")
-          .update({ status: "failed" })
+          .update({ 
+            status: "failed",
+            error_message: error.message || "Unknown error occurred"
+          })
           .eq("id", file.id);
 
         if (updateError) {
@@ -183,6 +213,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Received request to send scheduled files at:", new Date().toISOString());
     const result = await processScheduledFiles();
 
     // Respond with the result

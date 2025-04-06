@@ -20,6 +20,19 @@ serve(async (req) => {
   try {
     console.log("Cron job triggered at:", new Date().toISOString());
     
+    // Check if there are any pending emails to send
+    const { data: pendingFiles, error: countError } = await supabase
+      .from("scheduled_files")
+      .select("id")
+      .eq("status", "pending")
+      .lte("scheduled_date", new Date().toISOString());
+    
+    if (countError) {
+      console.error("Error checking pending files:", countError);
+    } else {
+      console.log(`Found ${pendingFiles?.length || 0} pending files to process`);
+    }
+    
     // Make a direct HTTP request to the send-scheduled-file function
     const functionsUrl = `${supabaseUrl}/functions/v1/send-scheduled-file`;
     console.log("Calling function at URL:", functionsUrl);
