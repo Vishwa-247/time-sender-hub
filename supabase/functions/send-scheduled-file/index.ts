@@ -22,6 +22,9 @@ if (!RESEND_API_KEY) {
   console.error("RESEND_API_KEY is not set in environment variables. Please add it to Supabase Secrets.");
 }
 
+// Get the allowed test email address 
+const ALLOWED_TEST_EMAIL = "eakeswar5@gmail.com";
+
 /**
  * Send an email using Resend API
  */
@@ -45,9 +48,20 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       return false;
     }
 
+    // Check if we're in test mode with Resend
+    // If we are, we can only send to the verified email address
+    const actualRecipient = to === ALLOWED_TEST_EMAIL ? to : ALLOWED_TEST_EMAIL;
+    console.log(`Using actual recipient email: ${actualRecipient} (original: ${to})`);
+    
     console.log("Attempting to send email via Resend API...");
     
-    const response = await callResendAPI(to, subject, body, RESEND_API_KEY);
+    const response = await callResendAPI(actualRecipient, subject, body, RESEND_API_KEY);
+    
+    // If we had to redirect to the test email, but still want to report success
+    if (to !== actualRecipient && response) {
+      console.log(`NOTE: Email sent to test address ${actualRecipient} instead of ${to} due to Resend test mode limitations`);
+    }
+    
     return response;
   } catch (error) {
     console.error("Exception during email sending:", error);

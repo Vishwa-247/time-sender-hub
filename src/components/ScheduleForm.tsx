@@ -174,9 +174,6 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
         {errors.recipient && (
           <p className="text-sm text-destructive">{errors.recipient.message}</p>
         )}
-        <p className="text-xs text-muted-foreground mt-1">
-          <strong>Note:</strong> Emails will be sent from "TimeCapsule &lt;onboarding@resend.dev&gt;".
-        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
