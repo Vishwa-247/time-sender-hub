@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -92,7 +93,7 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
       // Show a notice about Resend limitations in development
       toast.info(
-        "Remember: In development with Resend's free tier, emails can only be sent to your own verified email address",
+        "Remember: With Resend's free tier, emails can only be sent to verified addresses",
         { duration: 6000 }
       );
     }
@@ -342,44 +343,47 @@ export const triggerFileSending = async (): Promise<any> => {
     const data = await response.json();
     console.log("File sending result:", data);
     
-    // Added a small delay to allow Supabase realtime to sync
-    setTimeout(() => {
-      if (data?.processed === 0) {
-        toast.info("No files were ready to be sent at this time");
-      } else if (data?.success > 0) {
-        toast.success(`Successfully processed ${data.success} file(s)`);
-        
-        // Remind about Resend limitations in development mode
-        if ((import.meta.env.DEV || import.meta.env.MODE === 'development') && data?.failed > 0) {
-          toast.info(
-            "Note: With Resend free tier, emails can only be sent to verified addresses",
-            { duration: 5000 }
-          );
-        }
-        
-        // Force refresh the file list to show updated statuses
-        window.dispatchEvent(new CustomEvent('refresh-file-list'));
-        
-        if (data?.failed > 0) {
-          toast.error(`Failed to process ${data.failed} file(s). Check logs for details.`);
-        }
-      } else if (data?.failed > 0) {
-        // Show specialized Resend error notice
+    // Add a longer delay to allow database updates to sync
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Force refresh the file list to show updated statuses
+    window.dispatchEvent(new CustomEvent('refresh-file-list'));
+    
+    // Now show toast messages with the results
+    if (data?.processed === 0) {
+      toast.info("No files were ready to be sent at this time");
+    } else if (data?.success > 0) {
+      toast.success(`Successfully processed ${data.success} file(s)`);
+      
+      // Specialized message about Resend limitations if some failed
+      if ((import.meta.env.DEV || import.meta.env.MODE === 'development') && data?.failed > 0) {
+        toast.info(
+          "Note: With Resend free tier, emails can only be sent to verified addresses",
+          { duration: 5000 }
+        );
+      }
+      
+      if (data?.failed > 0) {
         toast.error(`Failed to process ${data.failed} file(s)`);
         
-        if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-          toast.error(
-            "If using Resend's free tier, you can only send to verified email addresses",
-            { duration: 8000 }
-          );
-        }
-        
-        // Force refresh the file list to show updated statuses
-        window.dispatchEvent(new CustomEvent('refresh-file-list'));
-      } else {
-        toast.info("No changes were made to any files");
+        // Add explanation about possible causes
+        toast.info(
+          "If emails were received but marked as failed, this may be due to Resend API limitations", 
+          { duration: 8000 }
+        );
       }
-    }, 1000);
+    } else if (data?.failed > 0) {
+      toast.error(`Failed to process ${data.failed} file(s)`);
+      
+      if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+        toast.error(
+          "If using Resend's free tier, you can only send to verified email addresses",
+          { duration: 8000 }
+        );
+      }
+    } else {
+      toast.info("No changes were made to any files");
+    }
     
     return data;
   } catch (error: any) {

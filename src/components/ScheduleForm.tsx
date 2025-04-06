@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Calendar as CalendarIcon, Clock, Mail } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -35,6 +35,7 @@ export interface ScheduleFormData {
 const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [date, setDate] = useState<Date | undefined>(editingFile?.scheduledDate || undefined);
+  const { toast } = useToast();
   
   const defaultTime = editingFile?.scheduledDate 
     ? format(editingFile.scheduledDate, "HH:mm")
@@ -69,12 +70,20 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
 
   const processSubmit = (data: ScheduleFormData) => {
     if (!date) {
-      toast.error("Please select a date");
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please select a date"
+      });
       return;
     }
 
     if (!selectedFile && !editingFile) {
-      toast.error("Please upload a file");
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please upload a file"
+      });
       return;
     }
 
@@ -83,7 +92,11 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
     scheduledDateTime.setHours(hours, minutes, 0, 0);
 
     if (scheduledDateTime < new Date()) {
-      toast.error("Scheduled time cannot be in the past");
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Scheduled time cannot be in the past"
+      });
       return;
     }
 
@@ -107,9 +120,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
       reset();
     }
     
-    toast.success(
-      editingFile ? "Schedule updated successfully" : "File scheduled successfully"
-    );
+    toast({
+      title: "Success",
+      description: editingFile 
+        ? "Schedule updated successfully" 
+        : "File scheduled successfully"
+    });
   };
 
   return (
