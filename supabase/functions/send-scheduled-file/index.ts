@@ -108,7 +108,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           console.error(`Error sending email for file ${file.id}:`, emailResult.error);
           failedCount++;
           
-          // Optionally, update file status to 'failed'
+          // Update file status to 'failed'
           const { error: updateError } = await supabaseClient
             .from("scheduled_files")
             .update({ 
@@ -172,6 +172,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 function generateAccessUrl(accessToken: string): string {
   // Make sure the URL doesn't have double slashes between domain and path
   const baseUrl = APP_URL.endsWith('/') ? APP_URL.slice(0, -1) : APP_URL;
+  // Making sure we always use /access/ path in the URL
   return `${baseUrl}/access/${accessToken}`;
 }
 

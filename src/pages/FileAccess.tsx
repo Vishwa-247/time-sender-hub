@@ -5,6 +5,7 @@ import { File, Download, ArrowLeft, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFileByToken } from "@/services/fileService";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 
 const FileAccess = () => {
   const { token } = useParams<{ token: string }>();
@@ -26,10 +27,14 @@ const FileAccess = () => {
           return;
         }
 
+        console.log("Fetching file with token:", token);
         const data = await getFileByToken(token);
+        
         if (!data) {
+          console.error("File data not found for token:", token);
           setError("File not found or access has expired");
         } else {
+          console.log("File data retrieved:", data);
           setFileData(data);
         }
       } catch (err) {

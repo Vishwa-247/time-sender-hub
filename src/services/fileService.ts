@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -210,6 +209,8 @@ export const getFileByToken = async (token: string): Promise<{
   fileUrl: string;
 } | null> => {
   try {
+    console.log("Fetching file with token:", token);
+    
     const { data, error } = await supabase
       .from("scheduled_files")
       .select("*")
@@ -221,23 +222,42 @@ export const getFileByToken = async (token: string): Promise<{
       return null;
     }
     
+    console.log("File data found in database:", data);
+    
+    // Update file status to 'sent' if it's still pending
+    if (data.status === 'pending') {
+      const { error: updateError } = await supabase
+        .from("scheduled_files")
+        .update({ 
+          status: "sent",
+          sent_at: new Date().toISOString() 
+        })
+        .eq("id", data.id);
+      
+      if (updateError) {
+        console.error("Error updating file status:", updateError);
+      }
+    }
+    
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
-      .createSignedUrl(data.storage_path, 60 * 60 * 24);
+      .createSignedUrl(data.storage_path, 60 * 60 * 24); // 24 hours
       
-    if (fileError) {
+    if (fileError || !fileData) {
       console.error("Error creating signed URL:", fileError);
       return null;
     }
     
+    console.log("Signed URL created successfully:", fileData.signedUrl);
+    
     return {
       fileName: data.file_name,
       fileType: data.file_type,
-      fileUrl: fileData?.signedUrl || ""
+      fileUrl: fileData.signedUrl
     };
   } catch (error: any) {
-    console.error("Error fetching file by token:", error);
+    console.error("Error in getFileByToken:", error);
     return null;
   }
 };
@@ -290,16 +310,19 @@ export const triggerFileSending = async (): Promise<any> => {
     const data = await response.json();
     console.log("File sending result:", data);
     
-    if (data?.processed === 0) {
-      toast.info("No files were ready to be sent at this time");
-    } else if (data?.success > 0) {
-      toast.success(`Successfully processed ${data.success} file(s)`);
-      if (data?.failed > 0) {
-        toast.error(`Failed to process ${data.failed} file(s)`);
+    // Added a small delay to allow Supabase realtime to sync
+    setTimeout(() => {
+      if (data?.processed === 0) {
+        toast.info("No files were ready to be sent at this time");
+      } else if (data?.success > 0) {
+        toast.success(`Successfully processed ${data.success} file(s)`);
+        if (data?.failed > 0) {
+          toast.error(`Failed to process ${data.failed} file(s)`);
+        }
+      } else {
+        toast.info("No changes were made to any files");
       }
-    } else {
-      toast.info("No changes were made to any files");
-    }
+    }, 500);
     
     return data;
   } catch (error: any) {

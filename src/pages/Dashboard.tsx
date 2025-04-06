@@ -29,6 +29,15 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchFiles();
+    setupRealtimeSubscription();
+    
+    return () => {
+      // Cleanup will be handled in the setupRealtimeSubscription function
+    };
+  }, []);
+  
+  const setupRealtimeSubscription = () => {
+    console.log("Setting up realtime subscription for scheduled_files table");
     
     const channel = supabase
       .channel('scheduled_files_changes')
@@ -41,30 +50,46 @@ const Dashboard = () => {
         },
         (payload) => {
           console.log('Real-time update received:', payload);
+          
+          // Force refetch all files when any changes occur
           fetchFiles();
           
+          // Show toast notifications for status changes
           if (payload.eventType === 'UPDATE' && 
               payload.new && payload.old && 
-              payload.new.status === 'sent' && 
-              payload.old.status === 'pending') {
-            toast({
-              title: "File Sent",
-              description: `The file "${payload.new.file_name}" has been sent successfully.`,
-            });
+              payload.new.status !== payload.old.status) {
+            
+            if (payload.new.status === 'sent' && payload.old.status === 'pending') {
+              toast({
+                title: "File Sent",
+                description: `The file "${payload.new.file_name}" has been sent successfully.`,
+              });
+            } else if (payload.new.status === 'failed' && payload.old.status === 'pending') {
+              toast({
+                title: "File Failed",
+                description: `Failed to send file "${payload.new.file_name}". Please try again.`,
+                variant: "destructive",
+              });
+            }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
     
     return () => {
+      console.log('Removing realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, []);
+  };
   
   const fetchFiles = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching scheduled files");
       const data = await getScheduledFiles();
+      console.log("Fetched files:", data);
       setFiles(data);
       setFilteredFiles(data);
     } catch (error) {
@@ -214,7 +239,7 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       await triggerFileSending();
-      await fetchFiles();
+      // We don't need to call fetchFiles here as the realtime subscription will handle it
     } catch (error) {
       console.error("Error triggering file sending:", error);
       toast({
