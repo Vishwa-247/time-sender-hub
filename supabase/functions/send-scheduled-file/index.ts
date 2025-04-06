@@ -15,6 +15,13 @@ const corsHeaders = {
 // Get the app URL (fallback for localhost development)
 const APP_URL = Deno.env.get("APP_URL") || "https://timecapsule.vercel.app";
 
+// Ensure Resend API key is available
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
+if (!RESEND_API_KEY) {
+  console.error("RESEND_API_KEY is not set in environment variables. Please add it to Supabase Secrets.");
+}
+
 /**
  * Send an email using Resend API
  */
@@ -23,8 +30,6 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
   console.log(`SUBJECT: ${subject}`);
   console.log(`BODY: ${body}`);
   console.log(`APP_URL being used: ${APP_URL}`);
-  
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY is not set in environment variables");
@@ -231,7 +236,7 @@ async function handleRequest(req: Request): Promise<Response> {
   try {
     console.log("Running scheduled file sending process...");
     console.log("Environment check - APP_URL:", APP_URL);
-    console.log("RESEND_API_KEY exists:", !!Deno.env.get("RESEND_API_KEY"));
+    console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
     
     const result = await processScheduledFiles();
     
