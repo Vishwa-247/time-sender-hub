@@ -11,6 +11,8 @@ import ScheduleForm, { ScheduleFormData } from "@/components/ScheduleForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { getScheduledFiles, scheduleFile, updateScheduledFile, deleteScheduledFile, triggerFileSending } from "@/services/fileService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -27,6 +29,36 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchFiles();
+    
+    const channel = supabase
+      .channel('scheduled_files_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'scheduled_files',
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          fetchFiles();
+          
+          if (payload.eventType === 'UPDATE' && 
+              payload.new && payload.old && 
+              payload.new.status === 'sent' && 
+              payload.old.status === 'pending') {
+            toast({
+              title: "File Sent",
+              description: `The file "${payload.new.file_name}" has been sent successfully.`,
+            });
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
   
   const fetchFiles = async () => {
@@ -76,16 +108,6 @@ const Dashboard = () => {
     }
     
     setFilteredFiles(filtered);
-  };
-  
-  const handleStatusFilterChange = (status: string) => {
-    setStatusFilter(current => {
-      if (current.includes(status)) {
-        return current.filter(s => s !== status);
-      } else {
-        return [...current, status];
-      }
-    });
   };
   
   const handleNewSchedule = async (formData: ScheduleFormData) => {

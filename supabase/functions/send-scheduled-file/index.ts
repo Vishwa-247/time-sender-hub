@@ -22,6 +22,26 @@ if (!RESEND_API_KEY) {
 }
 
 /**
+ * Enable Postgres replication for the scheduled_files table
+ */
+async function enableRealtimeForScheduledFiles() {
+  try {
+    const { error } = await supabaseClient.rpc('supabase_functions.invoke', {
+      name: 'enable-realtime-for-table',
+      body: { table_name: 'scheduled_files' },
+    });
+    
+    if (error) {
+      console.error("Error enabling realtime for scheduled_files:", error);
+    } else {
+      console.log("Successfully enabled realtime for scheduled_files table");
+    }
+  } catch (error) {
+    console.error("Error calling enable-realtime function:", error);
+  }
+}
+
+/**
  * Service handler to process scheduled files
  */
 async function processScheduledFiles(): Promise<{ success: number; failed: number; processed: number }> {
@@ -31,6 +51,9 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 
   try {
     console.log("Starting to process scheduled files at:", new Date().toISOString());
+    
+    // Try to enable realtime for the scheduled_files table (if not already enabled)
+    await enableRealtimeForScheduledFiles();
     
     // Fetch all pending scheduled files
     const { data: scheduledFiles, error: selectError } = await supabaseClient
