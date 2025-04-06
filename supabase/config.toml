@@ -16,8 +16,7 @@ enabled = true
 enabled = true
 port = 54323
 
-# Enable cron jobs for the project
+# Enable cron jobs to run every second for the project
 [functions.cron-scheduler]
 verify_jwt = false
 schedule = "* * * * * *"  # Run every second
-

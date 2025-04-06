@@ -12,8 +12,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Get the app URL (fallback for localhost development)
-const APP_URL = Deno.env.get("APP_URL") || "https://timecapsule.vercel.app";
+// Get the app URL for the correct access link
+const APP_URL = Deno.env.get("APP_URL") || "http://localhost:5173";
+console.log(`Using APP_URL: ${APP_URL}`);
 
 // Ensure Resend API key is available
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -28,8 +29,8 @@ if (!RESEND_API_KEY) {
 async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
   console.log(`SENDING EMAIL TO: ${to}`);
   console.log(`SUBJECT: ${subject}`);
-  console.log(`BODY: ${body}`);
-  console.log(`APP_URL being used: ${APP_URL}`);
+  console.log(`BODY PREVIEW: ${body.substring(0, 150)}...`);
+  console.log(`Using APP_URL: ${APP_URL}`);
   
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY is not set in environment variables");
@@ -118,8 +119,7 @@ async function getScheduledFiles() {
  * Generate access URL for a file
  */
 function generateAccessUrl(accessToken: string): string {
-  const baseUrl = APP_URL || "https://timecapsule.vercel.app";
-  return `${baseUrl}/access/${accessToken}`;
+  return `${APP_URL}/access/${accessToken}`;
 }
 
 /**
@@ -162,7 +162,7 @@ async function processFile(file: any) {
             👉 Access File
           </a>
         </div>
-        <p style="color: #666; font-size: 0.9em;">This link will expire in 24 hours.</p>
+        <p style="color: #666; font-size: 0.9em;">This link will be valid for 24 hours.</p>
         <p style="margin-top: 30px;">Thanks,<br>The Time Capsule Team</p>
       </div>
     `;
