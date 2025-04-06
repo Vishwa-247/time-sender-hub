@@ -225,21 +225,7 @@ export const getFileByToken = async (token: string): Promise<{
     
     console.log("File data found in database:", data);
     
-    // Update file status to 'sent' if it's still pending
-    if (data.status === 'pending') {
-      const { error: updateError } = await supabase
-        .from("scheduled_files")
-        .update({ 
-          status: "sent",
-          sent_at: new Date().toISOString() 
-        })
-        .eq("id", data.id);
-      
-      if (updateError) {
-        console.error("Error updating file status:", updateError);
-      }
-    }
-    
+    // Get a signed URL for the file regardless of status
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
@@ -251,6 +237,29 @@ export const getFileByToken = async (token: string): Promise<{
     }
     
     console.log("Signed URL created successfully:", fileData.signedUrl);
+    
+    // If file was pending, try to update status to 'sent'
+    if (data.status === 'pending') {
+      try {
+        const { error: updateError } = await supabase
+          .from("scheduled_files")
+          .update({ 
+            status: "sent",
+            sent_at: new Date().toISOString() 
+          })
+          .eq("id", data.id);
+        
+        if (updateError) {
+          console.error("Error updating file status:", updateError);
+          // Continue anyway, the user should still be able to access the file
+        } else {
+          console.log("Updated file status to 'sent'");
+        }
+      } catch (updateErr) {
+        console.error("Exception updating file status:", updateErr);
+        // Continue anyway
+      }
+    }
     
     return {
       fileName: data.file_name,

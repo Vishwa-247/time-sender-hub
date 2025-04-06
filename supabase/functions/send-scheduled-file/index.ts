@@ -12,7 +12,7 @@ const supabaseClient = createClient(
 );
 
 // Get the app URL for the correct access link - IMPORTANT: Set this in Supabase Edge Function Secrets
-const APP_URL = Deno.env.get("APP_URL") || "http://localhost:8080";
+const APP_URL = Deno.env.get("APP_URL") || "https://limzhusojiirnsefkupe.lovable.app";
 console.log(`Using APP_URL: ${APP_URL}`);
 
 // Ensure Resend API key is available
@@ -109,34 +109,43 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           failedCount++;
           
           // Update file status to 'failed'
-          const { error: updateError } = await supabaseClient
-            .from("scheduled_files")
-            .update({ 
-              status: "failed", 
-              error_message: emailResult.error.message || "Failed to send email"
-            })
-            .eq("id", file.id);
+          try {
+            const { error: updateError } = await supabaseClient
+              .from("scheduled_files")
+              .update({ 
+                status: "failed", 
+                error_message: emailResult.error.message || "Failed to send email"
+              })
+              .eq("id", file.id);
 
-          if (updateError) {
-            console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+            if (updateError) {
+              console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+            }
+          } catch (updateErr) {
+            console.error(`Exception when updating status to failed for file ${file.id}:`, updateErr);
           }
         } else {
           // Update file status to 'sent'
-          const { error: updateError } = await supabaseClient
-            .from("scheduled_files")
-            .update({ 
-              status: "sent", 
-              sent_at: new Date().toISOString(),
-              email_id: emailResult.data?.id || null
-            })
-            .eq("id", file.id);
+          try {
+            const { error: updateError } = await supabaseClient
+              .from("scheduled_files")
+              .update({ 
+                status: "sent", 
+                sent_at: new Date().toISOString(),
+                email_id: emailResult.data?.id || null
+              })
+              .eq("id", file.id);
 
-          if (updateError) {
-            console.error(`Error updating file status for file ${file.id}:`, updateError);
+            if (updateError) {
+              console.error(`Error updating file status for file ${file.id}:`, updateError);
+              failedCount++;
+            } else {
+              successCount++;
+              console.log(`Successfully sent file ${file.id} to ${file.recipient_email}`);
+            }
+          } catch (updateErr) {
+            console.error(`Exception when updating status to sent for file ${file.id}:`, updateErr);
             failedCount++;
-          } else {
-            successCount++;
-            console.log(`Successfully sent file ${file.id} to ${file.recipient_email}`);
           }
         }
       } catch (error: any) {
@@ -144,16 +153,20 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         failedCount++;
 
         // Update file status to 'failed'
-        const { error: updateError } = await supabaseClient
-          .from("scheduled_files")
-          .update({ 
-            status: "failed",
-            error_message: error.message || "Unknown error occurred"
-          })
-          .eq("id", file.id);
+        try {
+          const { error: updateError } = await supabaseClient
+            .from("scheduled_files")
+            .update({ 
+              status: "failed",
+              error_message: error.message || "Unknown error occurred"
+            })
+            .eq("id", file.id);
 
-        if (updateError) {
-          console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+          if (updateError) {
+            console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+          }
+        } catch (updateErr) {
+          console.error(`Exception when updating status to failed for file ${file.id}:`, updateErr);
         }
       }
     }
@@ -172,6 +185,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 function generateAccessUrl(accessToken: string): string {
   // Make sure the URL doesn't have double slashes between domain and path
   const baseUrl = APP_URL.endsWith('/') ? APP_URL.slice(0, -1) : APP_URL;
+  
   // Making sure we always use /access/ path in the URL
   return `${baseUrl}/access/${accessToken}`;
 }
@@ -191,7 +205,7 @@ async function sendEmail({
   apiKey: string;
 }): Promise<{ data: any; error: any }> {
   try {
-    console.log(`Attempting to send email to ${to} using Resend...`);
+    console.log(`Sending email to ${to} using Resend...`);
     
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

@@ -58,6 +58,7 @@ const FileAccess = () => {
             src={fileData.fileUrl} 
             alt={fileData.fileName} 
             className="w-full h-auto"
+            onError={() => toast.error("Error loading image preview")}
           />
         </div>
       );
