@@ -20,6 +20,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
   console.log(`SENDING EMAIL TO: ${to}`);
   console.log(`SUBJECT: ${subject}`);
   console.log(`BODY: ${body}`);
+  console.log(`APP_URL being used: ${APP_URL}`);
   
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   
@@ -35,6 +36,8 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
       return false;
     }
 
+    // First attempt with standard format
+    console.log("Attempting to send email with standard from format...");
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -50,11 +53,11 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
     });
     
     const result = await response.json();
-    console.log("Email API response:", result);
+    console.log("Email API response:", JSON.stringify(result));
     
     if (!response.ok) {
       console.error("Email sending failed with status:", response.status);
-      console.error("Error details:", result);
+      console.error("Error details:", JSON.stringify(result));
       
       // Try with a different "from" format if the first attempt failed
       if (response.status === 400 && result.message?.includes("from")) {
@@ -75,11 +78,11 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
         });
         
         const retryResult = await retryResponse.json();
-        console.log("Retry email API response:", retryResult);
+        console.log("Retry email API response:", JSON.stringify(retryResult));
         
         if (!retryResponse.ok) {
           console.error("Retry email sending failed with status:", retryResponse.status);
-          console.error("Retry error details:", retryResult);
+          console.error("Retry error details:", JSON.stringify(retryResult));
           return false;
         }
         
