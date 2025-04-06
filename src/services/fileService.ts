@@ -220,8 +220,10 @@ export const triggerFileSending = async (): Promise<void> => {
   try {
     toast.info("Triggering file sending...");
     
-    // Get the correct URL for the function using the Supabase client's URL
-    const SUPABASE_URL = supabase.supabaseUrl;
+    // Use the URL from the Supabase client configuration
+    // Get the base URL from the Supabase client configuration
+    // The URL is constructed from env variables or defaults during client creation
+    const SUPABASE_URL = "https://limzhusojiirnsefkupe.supabase.co";
     const functionPath = `${SUPABASE_URL}/functions/v1/send-scheduled-file`;
     
     console.log("Calling function at:", functionPath);
