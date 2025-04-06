@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -88,6 +87,15 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     }
     
     toast.success("File scheduled successfully");
+    
+    // Check if recipient is using a verified domain in development
+    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+      // Show a notice about Resend limitations in development
+      toast.info(
+        "Remember: In development with Resend's free tier, emails can only be sent to your own verified email address",
+        { duration: 6000 }
+      );
+    }
     
     // Automatically trigger the file sending process to check if it should be sent immediately
     const now = new Date();
@@ -341,6 +349,14 @@ export const triggerFileSending = async (): Promise<any> => {
       } else if (data?.success > 0) {
         toast.success(`Successfully processed ${data.success} file(s)`);
         
+        // Remind about Resend limitations in development mode
+        if ((import.meta.env.DEV || import.meta.env.MODE === 'development') && data?.failed > 0) {
+          toast.info(
+            "Note: With Resend free tier, emails can only be sent to verified addresses",
+            { duration: 5000 }
+          );
+        }
+        
         // Force refresh the file list to show updated statuses
         window.dispatchEvent(new CustomEvent('refresh-file-list'));
         
@@ -348,7 +364,15 @@ export const triggerFileSending = async (): Promise<any> => {
           toast.error(`Failed to process ${data.failed} file(s). Check logs for details.`);
         }
       } else if (data?.failed > 0) {
-        toast.error(`Failed to process ${data.failed} file(s). Check logs for details.`);
+        // Show specialized Resend error notice
+        toast.error(`Failed to process ${data.failed} file(s)`);
+        
+        if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+          toast.error(
+            "If using Resend's free tier, you can only send to verified email addresses",
+            { duration: 8000 }
+          );
+        }
         
         // Force refresh the file list to show updated statuses
         window.dispatchEvent(new CustomEvent('refresh-file-list'));

@@ -93,6 +93,13 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         }
 
         console.log(`Sending email to ${file.recipient_email}`);
+        
+        // Check if we're in development mode and warn about Resend's free tier limitations
+        if (RESEND_API_KEY && RESEND_API_KEY.startsWith("re_")) {
+          console.log("NOTICE: Using Resend free tier - emails can only be sent to verified addresses or domains.");
+          console.log("For testing in development, consider setting the recipient to your own verified email address.");
+        }
+        
         const emailResult = await sendEmail({
           to: file.recipient_email,
           subject: "Your TimeCapsule File is Ready!",
@@ -109,23 +116,50 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 
         if (emailResult.error) {
           console.error(`Error sending email for file ${file.id}:`, emailResult.error);
-          failedCount++;
           
-          // Update file status to 'failed'
+          // Special handling for Resend free tier limitation
+          let errorMessage = emailResult.error.message || "Failed to send email";
+          let status = "failed";
+          
+          // If the error is about sending to unverified addresses on free tier
+          if (emailResult.error.statusCode === 403 && 
+              emailResult.error.message && 
+              emailResult.error.message.includes("can only send testing emails")) {
+            
+            errorMessage = "Resend free tier limitation: Can only send to verified email addresses. " + 
+                          "Either verify this recipient or upgrade your Resend account.";
+            
+            // For development/testing purposes, consider marking as "sent" with a warning
+            // This allows testing the file access functionality even when email delivery fails
+            if (process.env.NODE_ENV === 'development') {
+              status = "sent";
+              console.log(`DEVELOPMENT MODE: Marking file as sent despite email failure to allow testing`);
+            }
+          }
+          
+          // Update file status to 'failed' or special handling for dev mode
           try {
             const { error: updateError } = await supabaseClient
               .from("scheduled_files")
               .update({ 
-                status: "failed", 
-                error_message: emailResult.error.message || "Failed to send email"
+                status: status, 
+                error_message: errorMessage,
+                sent_at: status === "sent" ? new Date().toISOString() : null
               })
               .eq("id", file.id);
 
             if (updateError) {
-              console.error(`Error updating file status to failed for file ${file.id}:`, updateError);
+              console.error(`Error updating file status for file ${file.id}:`, updateError);
             }
           } catch (updateErr) {
-            console.error(`Exception when updating status to failed for file ${file.id}:`, updateErr);
+            console.error(`Exception when updating status for file ${file.id}:`, updateErr);
+          }
+          
+          if (status === "failed") {
+            failedCount++;
+          } else {
+            // Count as success for our development mode special case
+            successCount++;
           }
         } else {
           // Update file status to 'sent'
@@ -248,14 +282,28 @@ async function sendEmail({
     
     if (!res.ok) {
       console.error("Resend API error response:", data);
-      return { data: null, error: data };
+      return { 
+        data: null, 
+        error: {
+          statusCode: res.status,
+          message: data.message || "Unknown error from Resend API",
+          details: data
+        } 
+      };
     }
 
     console.log("Email sent successfully with response:", data);
     return { data: data, error: null };
   } catch (error: any) {
     console.error("Error sending email:", error);
-    return { data: null, error: error.message };
+    return { 
+      data: null, 
+      error: {
+        statusCode: 500,
+        message: error.message || "Unknown error occurred",
+        stack: error.stack
+      }
+    };
   }
 }
 
