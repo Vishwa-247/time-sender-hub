@@ -1,5 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,32 +20,16 @@ serve(async (req) => {
   try {
     console.log("Cron job triggered at:", new Date().toISOString());
     
-    // Get the current URL to determine the base URL for the send-scheduled-file function
-    const url = new URL(req.url);
-    const baseUrl = url.origin;
-    const functionUrl = `${baseUrl}/functions/v1/send-scheduled-file`;
-    
-    console.log("Calling send-scheduled-file function at:", functionUrl);
-    
-    // Call the send-scheduled-file function
-    const sendScheduledRes = await fetch(
-      functionUrl,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": req.headers.get("Authorization") || "",
-        },
-      }
-    );
+    // Instead of constructing a URL, use the Supabase Functions SDK
+    const { data: sendScheduledData, error: sendScheduledError } = await supabase.functions.invoke('send-scheduled-file', {
+      method: 'POST',
+    });
 
-    if (!sendScheduledRes.ok) {
-      const errorText = await sendScheduledRes.text();
-      console.error("Error calling send-scheduled-file:", errorText);
-      throw new Error(`Failed to call send-scheduled-file: ${sendScheduledRes.status} ${errorText}`);
+    if (sendScheduledError) {
+      console.error("Error calling send-scheduled-file:", sendScheduledError);
+      throw new Error(`Failed to call send-scheduled-file: ${sendScheduledError.message}`);
     }
 
-    const sendScheduledData = await sendScheduledRes.json();
     console.log("Send scheduled function result:", sendScheduledData);
 
     return new Response(

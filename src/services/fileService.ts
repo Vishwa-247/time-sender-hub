@@ -220,18 +220,9 @@ export const triggerFileSending = async (): Promise<void> => {
   try {
     toast.info("Triggering file sending...");
     
-    // Use the URL from the Supabase client configuration
-    // Get the base URL from the Supabase client configuration
-    // The URL is constructed from env variables or defaults during client creation
-    const SUPABASE_URL = "https://limzhusojiirnsefkupe.supabase.co";
-    const functionPath = `${SUPABASE_URL}/functions/v1/send-scheduled-file`;
-    
-    console.log("Calling function at:", functionPath);
-    
-    // Use supabase functions invoke with proper error handling
+    // Use direct function invocation with supabase client
     const { data, error } = await supabase.functions.invoke('send-scheduled-file', {
       method: 'POST',
-      body: {},
     });
     
     if (error) {
@@ -240,22 +231,31 @@ export const triggerFileSending = async (): Promise<void> => {
       throw error;
     }
     
-    toast.success("Files processed successfully");
+    if (data?.processed === 0) {
+      toast.info("No files were ready to be sent at this time");
+    } else if (data?.success > 0) {
+      toast.success(`Successfully processed ${data.success} file(s)`);
+      if (data?.failed > 0) {
+        toast.error(`Failed to process ${data.failed} file(s)`);
+      }
+    } else {
+      toast.info("No changes were made to any files");
+    }
+    
     console.log("File sending result:", data);
     
-    // Return the processed files to refresh the UI
     return data;
   } catch (error: any) {
     console.error("Error triggering file sending:", error);
-    toast.error(`Error triggering file sending: ${error.message || "Unknown error"}`);
     
-    // If we can determine this is a connection error, provide a clearer message
-    if (error.message && (
-      error.message.includes("Failed to fetch") || 
-      error.message.includes("Network") ||
-      error.message.includes("CORS")
-    )) {
-      toast.error("Cannot connect to the edge function. Please check your network connection or contact support.");
+    // Provide more descriptive error messages
+    if (error.message?.includes("Failed to fetch") || 
+        error.message?.includes("Network") ||
+        error.message?.includes("CORS")) {
+      toast.error("Cannot connect to the Edge Function. This is expected in the development environment unless you're running the Supabase Edge Functions locally.");
+      console.log("To run Edge Functions locally, use: supabase functions serve");
+    } else {
+      toast.error(`Error triggering file sending: ${error.message || "Unknown error"}`);
     }
     
     throw error;

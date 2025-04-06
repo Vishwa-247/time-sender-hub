@@ -32,6 +32,7 @@ async function processScheduledFiles() {
   try {
     // Get current timestamp
     const now = new Date();
+    console.log(`Current time: ${now.toISOString()}`);
     
     // Fetch files ready to be sent (scheduled_date <= now AND status = 'pending')
     const { data: files, error } = await supabase
@@ -47,13 +48,18 @@ async function processScheduledFiles() {
     
     console.log(`Found ${files?.length || 0} files to process`);
     
+    if (!files || files.length === 0) {
+      return { processed: 0, message: "No files ready to be sent" };
+    }
+    
     // Process each file
     const results = await Promise.all((files || []).map(async (file) => {
       try {
         console.log(`Processing file: ${file.id} - ${file.file_name} to ${file.recipient_email}`);
         
-        // Generate access URL using the APP_URL environment variable
-        const accessUrl = `${APP_URL}/access/${file.access_token}`;
+        // Generate access URL - use a safe fallback in case APP_URL isn't set
+        const baseUrl = APP_URL || "https://timecapsule.vercel.app";
+        const accessUrl = `${baseUrl}/access/${file.access_token}`;
         
         console.log(`Generated access URL: ${accessUrl}`);
         
