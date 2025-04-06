@@ -11,7 +11,9 @@ const supabaseClient = createClient(
   }
 );
 
-// Get the app URL for the correct access link - IMPORTANT: Set this in Supabase Edge Function Secrets
+// Get the app URL for the correct access link
+// IMPORTANT: Set this in Supabase Edge Function Secrets
+// This should be a public URL accessible to recipients, NEVER localhost
 const APP_URL = Deno.env.get("APP_URL") || "https://limzhusojiirnsefkupe.lovable.app";
 console.log(`Using APP_URL: ${APP_URL}`);
 
@@ -51,6 +53,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 
   try {
     console.log("Starting to process scheduled files at:", new Date().toISOString());
+    console.log("Using APP_URL:", APP_URL); // Log the URL being used
     
     // Try to enable realtime for the scheduled_files table (if not already enabled)
     await enableRealtimeForScheduledFiles();
@@ -183,6 +186,11 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
  * Generate access URL for a file
  */
 function generateAccessUrl(accessToken: string): string {
+  // Make sure we're using a valid public URL, not localhost
+  if (!APP_URL || APP_URL.includes('localhost')) {
+    console.warn("WARNING: Using localhost URL which won't work for email recipients!");
+  }
+  
   // Make sure the URL doesn't have double slashes between domain and path
   const baseUrl = APP_URL.endsWith('/') ? APP_URL.slice(0, -1) : APP_URL;
   

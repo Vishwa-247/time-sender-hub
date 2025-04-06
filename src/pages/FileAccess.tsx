@@ -36,10 +36,15 @@ const FileAccess = () => {
         } else {
           console.log("File data retrieved:", data);
           setFileData(data);
+          // Verify the URL is valid
+          if (!data.fileUrl || !data.fileUrl.startsWith('http')) {
+            console.error("Invalid file URL:", data.fileUrl);
+            setError("Invalid file access URL. Please contact support.");
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching file:", err);
-        setError("An error occurred while retrieving the file");
+        setError(`An error occurred while retrieving the file: ${err.message || 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
@@ -69,6 +74,14 @@ const FileAccess = () => {
         <File className="h-16 w-16 text-primary" />
       </div>
     );
+  };
+
+  const handleDownload = () => {
+    if (fileData) {
+      // Open in new tab and also trigger download
+      window.open(fileData.fileUrl, '_blank');
+      toast.success("File download started");
+    }
   };
 
   return (
@@ -125,17 +138,9 @@ const FileAccess = () => {
                   {fileData?.fileType}
                 </p>
                 
-                <Button asChild size="lg" className="animate-pulse">
-                  <a 
-                    href={fileData?.fileUrl} 
-                    download={fileData?.fileName}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => toast.success("File download started")}
-                  >
-                    <Download className="mr-2 h-5 w-5" />
-                    Download File
-                  </a>
+                <Button onClick={handleDownload} size="lg" className="animate-pulse">
+                  <Download className="mr-2 h-5 w-5" />
+                  Download File
                 </Button>
               </div>
             </div>
