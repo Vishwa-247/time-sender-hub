@@ -12,6 +12,7 @@ import Navbar from "@/components/Navbar";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
 import { Popover, PopoverContent } from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -19,14 +20,44 @@ const Settings = () => {
   const { user, signOut } = useAuth();
   
   // Profile settings
-  const [name, setName] = useState("Jane Doe");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   
-  // Effect to set email from authenticated user
+  // Effect to set email and name from authenticated user
   useEffect(() => {
     if (user) {
       setEmail(user.email || "");
+      
+      // Try to get the user's name from metadata
+      const userName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.user_metadata?.preferred_name || "";
+      
+      if (userName) {
+        setName(userName);
+      } else {
+        // Fallback: get user profile from database
+        const fetchUserProfile = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', user.id)
+              .single();
+              
+            if (data && data.full_name) {
+              setName(data.full_name);
+            } else {
+              setName(""); // Empty string if no name found
+            }
+          } catch (error) {
+            console.error("Error fetching user profile:", error);
+          }
+        };
+        
+        fetchUserProfile();
+      }
     }
   }, [user]);
   
@@ -50,15 +81,34 @@ const Settings = () => {
     }
   }, []);
   
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      // Update user metadata
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: name }
+      });
+      
+      if (error) throw error;
+      
+      // Also update profile if it exists
+      await supabase
+        .from('profiles')
+        .upsert({ 
+          id: user?.id,
+          full_name: name,
+          email: email
+        });
+        
       toast.success("Profile settings updated successfully");
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast.error(`Failed to update profile: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const handleNotificationSave = (e: React.FormEvent) => {
@@ -179,14 +229,16 @@ const Settings = () => {
                 <div className="flex items-center gap-6 mb-8">
                   <div className="relative">
                     <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl">
-                      <Calendar className="h-10 w-10" />
+                      {name ? 
+                        name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) 
+                        : <Calendar className="h-10 w-10" />}
                     </div>
                     <Button variant="outline" size="icon" className="absolute bottom-0 right-0 h-7 w-7 rounded-full shadow-sm">
                       <Palette className="h-3 w-3" />
                     </Button>
                   </div>
                   <div>
-                    <h3 className="font-medium">{name}</h3>
+                    <h3 className="font-medium">{name || "Add your name"}</h3>
                     <p className="text-sm text-muted-foreground">{email}</p>
                     <Button variant="link" className="p-0 h-auto text-xs">
                       Change avatar
@@ -202,6 +254,7 @@ const Settings = () => {
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your full name"
                       />
                     </div>
                     

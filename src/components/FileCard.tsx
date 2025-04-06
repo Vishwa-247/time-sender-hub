@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Calendar, Mail, Trash, Edit, Clock, FileIcon, CheckCircle, AlertCircle, FileText } from 'lucide-react';
@@ -17,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface FileItem {
   id: string;
@@ -41,6 +43,12 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   const [progress, setProgress] = useState(file.progress || 0);
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+
+  // Function to truncate text with an ellipsis
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
 
   useEffect(() => {
     if (file.status === 'pending') {
@@ -147,7 +155,18 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
           {getFileIcon()}
           
           <div>
-            <h3 className="font-medium text-base line-clamp-1 text-foreground">{file.name}</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="font-medium text-base line-clamp-1 text-foreground">
+                    {truncateText(file.name, 20)}
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{file.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
           </div>
         </div>
@@ -198,7 +217,18 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
         <div className="space-y-1.5 text-sm">
           <div className="flex items-center text-muted-foreground">
             <Mail className="h-4 w-4 mr-2" />
-            <span className="text-foreground">{file.recipient}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-foreground truncate max-w-[200px] inline-block">
+                    {file.recipient}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{file.recipient}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="flex items-center text-muted-foreground">
             <Calendar className="h-4 w-4 mr-2" />

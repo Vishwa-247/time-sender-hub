@@ -15,15 +15,48 @@ const corsHeaders = {
 // Get the app URL (fallback for localhost development)
 const APP_URL = Deno.env.get("APP_URL") || "https://timecapsule.vercel.app";
 
-// Function to send an email (simplified for demonstration)
+// Function to send an email using Resend API
 async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
   console.log(`SENDING EMAIL TO: ${to}`);
   console.log(`SUBJECT: ${subject}`);
   console.log(`BODY: ${body}`);
   
-  // In a real-world scenario, you would integrate with an email service like SendGrid, Mailgun, etc.
-  // For now, we'll just simulate success
-  return true;
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  if (!RESEND_API_KEY) {
+    console.error("RESEND_API_KEY is not set in environment variables");
+    return false;
+  }
+  
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`
+      },
+      body: JSON.stringify({
+        from: "TimeCapsule <onboarding@resend.dev>",
+        to: [to],
+        subject: subject,
+        html: body,
+      })
+    });
+    
+    const result = await response.json();
+    console.log("Email API response:", result);
+    
+    if (!response.ok) {
+      console.error("Email sending failed with status:", response.status);
+      console.error("Error details:", result);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return false;
+  }
 }
 
 async function processScheduledFiles() {

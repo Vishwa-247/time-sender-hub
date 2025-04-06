@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import FileUpload from "./FileUpload";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ScheduleFormProps {
   onSubmit: (data: ScheduleFormData) => void;
@@ -48,6 +49,12 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
+  };
+
+  // Function to truncate text with an ellipsis
+  const truncateText = (text: string, maxLength: number) => {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   const processSubmit = (data: ScheduleFormData) => {
@@ -103,6 +110,39 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
         <div className="space-y-2">
           <Label>File</Label>
           <FileUpload onFileSelect={handleFileSelect} />
+          {selectedFile && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="truncate max-w-full">
+                      Selected: <span className="font-medium">{truncateText(selectedFile.name, 25)}</span>
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{selectedFile.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
+        </div>
+      )}
+      {editingFile && (
+        <div className="space-y-2">
+          <Label>File</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="p-2 border border-input rounded-md bg-muted/30 text-sm truncate">
+                  {truncateText(editingFile.name, 40)}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{editingFile.name}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
 
