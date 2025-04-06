@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Filter, Plus, Loader2, Search, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +109,16 @@ const Dashboard = () => {
     }
     
     setFilteredFiles(filtered);
+  };
+  
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(prev => {
+      if (prev.includes(status)) {
+        return prev.filter(s => s !== status);
+      } else {
+        return [...prev, status];
+      }
+    });
   };
   
   const handleNewSchedule = async (formData: ScheduleFormData) => {
