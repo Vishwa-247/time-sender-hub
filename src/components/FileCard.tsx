@@ -53,8 +53,7 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   });
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { theme } = useTheme();
-  const isDarkMode = theme === 'dark';
-
+  
   // Function to truncate text with an ellipsis
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
@@ -124,25 +123,20 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   };
   
   const getFileIcon = () => {
-    const iconColor = isDarkMode ? "text-blue-400" : "text-blue-500";
-    
-    if (file.type.includes('image')) {
-      return (
-        <div className="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-          <FileText className={`h-6 w-6 ${iconColor}`} />
-        </div>
-      );
-    }
-    
+    // Use primary color from theme instead of hardcoded blue
     return (
-      <div className="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-        <FileIcon className={`h-6 w-6 ${iconColor}`} />
+      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+        {file.type.includes('image') ? (
+          <FileText className="h-6 w-6 text-primary" />
+        ) : (
+          <FileIcon className="h-6 w-6 text-primary" />
+        )}
       </div>
     );
   };
   
   const getProgressColor = () => {
-    return isDarkMode ? "bg-blue-500" : "bg-blue-500";
+    return "bg-primary";
   };
   
   const getDateFormatted = () => {
@@ -212,7 +206,7 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
   return (
     <>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <Card className="overflow-hidden border border-border bg-card text-card-foreground dark:border-border cursor-pointer" onClick={handleFilePreview}>
+        <Card className="overflow-hidden border-border bg-card text-card-foreground hover:shadow-md transition-all duration-200 cursor-pointer" onClick={handleFilePreview}>
           <CardHeader className="flex flex-row items-center justify-between p-4 pb-0">
             <div className="flex items-center gap-3">
               {getFileIcon()}
@@ -246,13 +240,12 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground">
+                <DropdownMenuContent align="end" className="w-[160px]">
                   <DropdownMenuItem 
                     onClick={(e) => {
                       e.stopPropagation();
                       handleFilePreview();
                     }}
-                    className="text-foreground"
                   >
                     <Eye className="mr-2 h-4 w-4" />
                     <span>Preview</span>
@@ -264,7 +257,6 @@ const FileCard = ({ file, onDelete, onEdit }: FileCardProps) => {
                         setIsMenuOpen(false);
                         onEdit(file.id);
                       }}
-                      className="text-foreground"
                     >
                       <Edit className="mr-2 h-4 w-4" />
                       <span>Edit</span>

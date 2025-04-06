@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Get the app URL for the correct access link
+// Get the app URL for the correct access link - IMPORTANT: Set this in Supabase Edge Function Secrets
 const APP_URL = Deno.env.get("APP_URL") || "http://localhost:5173";
 console.log(`Using APP_URL: ${APP_URL}`);
 
@@ -119,6 +119,7 @@ async function getScheduledFiles() {
  * Generate access URL for a file
  */
 function generateAccessUrl(accessToken: string): string {
+  // Use the APP_URL environment variable for the correct link generation
   return `${APP_URL}/access/${accessToken}`;
 }
 
