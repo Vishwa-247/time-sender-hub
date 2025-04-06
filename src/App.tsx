@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import FileAccess from "./pages/FileAccess";
@@ -60,6 +61,11 @@ const App = () => (
           <Route path="/auth" element={
             <PublicOnlyRoute>
               <Auth />
+            </PublicOnlyRoute>
+          } />
+          <Route path="/reset-password" element={
+            <PublicOnlyRoute>
+              <ResetPassword />
             </PublicOnlyRoute>
           } />
           <Route path="/settings" element={
