@@ -30,11 +30,29 @@ const Dashboard = () => {
   useEffect(() => {
     fetchFiles();
     setupRealtimeSubscription();
+    setupRefreshListener();
+    
+    // Check for files that need sending immediately on dashboard load
+    const triggerInitialCheck = async () => {
+      try {
+        await triggerFileSending();
+      } catch (error) {
+        console.error("Error during initial file sending check:", error);
+      }
+    };
+    
+    triggerInitialCheck();
     
     return () => {
       // Cleanup will be handled in the setupRealtimeSubscription function
+      window.removeEventListener('refresh-file-list', fetchFiles);
     };
   }, []);
+  
+  const setupRefreshListener = () => {
+    // Set up event listener for manual refresh requests
+    window.addEventListener('refresh-file-list', fetchFiles);
+  };
   
   const setupRealtimeSubscription = () => {
     console.log("Setting up realtime subscription for scheduled_files table");
@@ -239,7 +257,10 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       await triggerFileSending();
-      // We don't need to call fetchFiles here as the realtime subscription will handle it
+      // Force refresh file list after manual trigger to show latest statuses
+      setTimeout(() => {
+        fetchFiles();
+      }, 1500);
     } catch (error) {
       console.error("Error triggering file sending:", error);
       toast({

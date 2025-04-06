@@ -79,6 +79,7 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
         recipient_email: params.recipient,
         scheduled_date: params.scheduledDate.toISOString(),
         access_token: accessToken,
+        status: "pending", // explicitly set status
       });
       
     if (error) {
@@ -89,11 +90,14 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     toast.success("File scheduled successfully");
     
     // Automatically trigger the file sending process to check if it should be sent immediately
-    try {
-      await triggerFileSending();
-    } catch (triggerError) {
-      console.log("Non-critical error when triggering file sending:", triggerError);
-      // Non-critical error, don't rethrow
+    const now = new Date();
+    if (params.scheduledDate <= now) {
+      try {
+        await triggerFileSending();
+      } catch (triggerError) {
+        console.log("Non-critical error when triggering immediate file sending:", triggerError);
+        // Non-critical error, don't rethrow
+      }
     }
   } catch (error: any) {
     console.error("Error scheduling file:", error);
@@ -119,6 +123,16 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
     }
     
     toast.success("Schedule updated successfully");
+    
+    // Check if the updated date is now or in the past, if so trigger sending
+    const now = new Date();
+    if (params.scheduledDate <= now) {
+      try {
+        await triggerFileSending();
+      } catch (triggerError) {
+        console.log("Non-critical error when triggering file sending after update:", triggerError);
+      }
+    }
   } catch (error: any) {
     console.error("Error updating scheduled file:", error);
     toast.error(`Error updating scheduled file: ${error.message}`);
@@ -326,15 +340,22 @@ export const triggerFileSending = async (): Promise<any> => {
         toast.info("No files were ready to be sent at this time");
       } else if (data?.success > 0) {
         toast.success(`Successfully processed ${data.success} file(s)`);
+        
+        // Force refresh the file list to show updated statuses
+        window.dispatchEvent(new CustomEvent('refresh-file-list'));
+        
         if (data?.failed > 0) {
-          toast.error(`Failed to process ${data.failed} file(s)`);
+          toast.error(`Failed to process ${data.failed} file(s). Check logs for details.`);
         }
       } else if (data?.failed > 0) {
-        toast.error(`Failed to process ${data.failed} file(s)`);
+        toast.error(`Failed to process ${data.failed} file(s). Check logs for details.`);
+        
+        // Force refresh the file list to show updated statuses
+        window.dispatchEvent(new CustomEvent('refresh-file-list'));
       } else {
         toast.info("No changes were made to any files");
       }
-    }, 500);
+    }, 1000);
     
     return data;
   } catch (error: any) {

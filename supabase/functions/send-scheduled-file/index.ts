@@ -130,21 +130,36 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         } else {
           // Update file status to 'sent'
           try {
-            const { error: updateError } = await supabaseClient
+            // First check if the file wasn't already sent by another process
+            const { data: currentFile, error: checkError } = await supabaseClient
               .from("scheduled_files")
-              .update({ 
-                status: "sent", 
-                sent_at: new Date().toISOString(),
-                email_id: emailResult.data?.id || null
-              })
-              .eq("id", file.id);
+              .select("status")
+              .eq("id", file.id)
+              .single();
+              
+            if (checkError) {
+              console.error(`Error checking current file status for ${file.id}:`, checkError);
+            } else if (currentFile && currentFile.status === "pending") {
+              // Only update if still pending
+              const { error: updateError } = await supabaseClient
+                .from("scheduled_files")
+                .update({ 
+                  status: "sent", 
+                  sent_at: new Date().toISOString(),
+                  email_id: emailResult.data?.id || null
+                })
+                .eq("id", file.id);
 
-            if (updateError) {
-              console.error(`Error updating file status for file ${file.id}:`, updateError);
-              failedCount++;
+              if (updateError) {
+                console.error(`Error updating file status for file ${file.id}:`, updateError);
+                failedCount++;
+              } else {
+                successCount++;
+                console.log(`Successfully sent file ${file.id} to ${file.recipient_email}`);
+              }
             } else {
+              console.log(`File ${file.id} was already processed with status: ${currentFile?.status}`);
               successCount++;
-              console.log(`Successfully sent file ${file.id} to ${file.recipient_email}`);
             }
           } catch (updateErr) {
             console.error(`Exception when updating status to sent for file ${file.id}:`, updateErr);
