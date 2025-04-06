@@ -107,11 +107,21 @@ async function getScheduledFiles() {
   const now = new Date();
   console.log(`Current time: ${now.toISOString()}`);
   
-  // Fetch files ready to be sent (scheduled_date <= now AND status = 'pending')
+  // Calculate time window (current minute)
+  const startTime = new Date(now);
+  startTime.setSeconds(0, 0); // Reset seconds and milliseconds
+  
+  const endTime = new Date(startTime);
+  endTime.setMinutes(endTime.getMinutes() + 1);
+  
+  console.log(`Looking for files scheduled between ${startTime.toISOString()} and ${endTime.toISOString()}`);
+  
+  // Fetch files ready to be sent (scheduled_date is in the current minute AND status = 'pending')
   const { data: files, error } = await supabase
     .from("scheduled_files")
     .select("*")
-    .lte("scheduled_date", now.toISOString())
+    .gte("scheduled_date", startTime.toISOString())
+    .lt("scheduled_date", endTime.toISOString())
     .eq("status", "pending");
     
   if (error) {
@@ -160,8 +170,21 @@ async function processFile(file: any) {
     console.log(`Generated access URL: ${accessUrl}`);
     
     // Prepare email content
-    const subject = `Your scheduled file "${file.file_name}" is ready`;
-    const body = `Hello,<br><br>Your scheduled file "${file.file_name}" is now available. Click the link below to access it:<br><br><a href="${accessUrl}">${accessUrl}</a><br><br>This link will expire in 24 hours.<br><br>Regards,<br>TimeCapsule Team`;
+    const subject = `📦 Your Scheduled File "${file.file_name}" is Ready`;
+    const body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 5px;">
+        <h2 style="color: #333;">Hello,</h2>
+        <p>A file has been scheduled for you and is now ready to access.</p>
+        <p style="margin: 20px 0;"><strong>File name:</strong> ${file.file_name}</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${accessUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+            👉 Access File
+          </a>
+        </div>
+        <p style="color: #666; font-size: 0.9em;">This link will expire in 24 hours.</p>
+        <p style="margin-top: 30px;">Thanks,<br>The Time Capsule Team</p>
+      </div>
+    `;
     
     // Send email with file access link
     const emailSent = await sendEmail(file.recipient_email, subject, body);
@@ -206,7 +229,7 @@ async function processScheduledFiles() {
     const files = await getScheduledFiles();
     
     if (files.length === 0) {
-      return { processed: 0, message: "No files ready to be sent" };
+      return { processed: 0, message: "No files ready to be sent at this time" };
     }
     
     // Process each file

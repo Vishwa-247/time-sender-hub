@@ -19,4 +19,5 @@ port = 54323
 # Enable cron jobs for the project
 [functions.cron-scheduler]
 verify_jwt = false
-schedule = "*/5 * * * *"  # Run every 5 minutes
+schedule = "* * * * *"  # Run every minute
+

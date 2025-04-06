@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Calendar as CalendarIcon, Clock, Mail, Info } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -12,7 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import FileUpload from "./FileUpload";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ScheduleFormProps {
   onSubmit: (data: ScheduleFormData) => void;
@@ -35,7 +35,6 @@ export interface ScheduleFormData {
 const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [date, setDate] = useState<Date | undefined>(editingFile?.scheduledDate || undefined);
-  const [showInfo, setShowInfo] = useState(false);
   
   const defaultTime = editingFile?.scheduledDate 
     ? format(editingFile.scheduledDate, "HH:mm")
@@ -99,8 +98,6 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
     } else if (selectedFile) {
       formData.file = selectedFile;
     }
-
-    setShowInfo(true);
     
     onSubmit(formData);
     
@@ -117,21 +114,6 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
-      {showInfo && (
-        <Alert className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <p>Email delivery setup complete! Your file has been scheduled for delivery.</p>
-            <p className="mt-2">If you don't receive the email when scheduled:</p>
-            <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Check that your Resend API key is correctly set in Supabase Secrets</li>
-              <li><strong>Important:</strong> For free Resend accounts, verify that the recipient email is added to your verified contacts in Resend</li>
-              <li>Check the Edge Function logs in Supabase for any error details</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
-      
       {!editingFile && (
         <div className="space-y-2">
           <Label>File</Label>
@@ -193,7 +175,7 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
           <p className="text-sm text-destructive">{errors.recipient.message}</p>
         )}
         <p className="text-xs text-muted-foreground mt-1">
-          <strong>Note:</strong> Emails will be sent from "TimeCapsule &lt;onboarding@resend.dev&gt;". If using a free Resend account, make sure to add recipient emails to your verified contacts in Resend.
+          <strong>Note:</strong> Emails will be sent from "TimeCapsule &lt;onboarding@resend.dev&gt;".
         </p>
       </div>
 
