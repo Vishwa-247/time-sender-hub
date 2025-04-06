@@ -40,7 +40,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
 
     console.log("Attempting to send email via Resend API...");
     
-    // Using Resend's onboarding address since we don't have a custom domain
+    // Using Resend's default onboarding address (this works without domain verification)
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
