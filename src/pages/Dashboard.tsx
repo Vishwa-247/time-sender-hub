@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
@@ -13,6 +12,22 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
 import StatusTabs from "@/components/dashboard/StatusTabs";
 import ScheduleFileDialog from "@/components/dashboard/ScheduleFileDialog";
+
+// Define types for payload
+interface RealtimePayload {
+  commit_timestamp: string;
+  eventType: string;
+  schema: string;
+  table: string;
+  new: {
+    [key: string]: any;
+    user_id?: string;
+  };
+  old?: {
+    [key: string]: any;
+    status?: string;
+  };
+}
 
 const Dashboard = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -34,10 +49,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   
   const fetchFiles = useCallback(async () => {
-    // Check if user exists before attempting to fetch
     if (!user) {
-      // Don't try more than 5 times to avoid infinite loading 
-      // when actually not authenticated
       if (fetchAttemptRef.current > 5) {
         console.log("No user after multiple attempts, stopping fetch attempts");
         setIsLoading(false);
@@ -49,7 +61,6 @@ const Dashboard = () => {
       return;
     }
     
-    // Mark that we've checked the user at least once
     hasUserCheckedRef.current = true;
     
     try {
@@ -95,7 +106,6 @@ const Dashboard = () => {
   }, [user, files, fetchFiles, initialLoadComplete]);
 
   const setupRealtimeSubscription = useCallback(() => {
-    // Clean up existing subscription if any
     if (realtimeChannelRef.current) {
       console.log("Cleaning up existing realtime subscription");
       supabase.removeChannel(realtimeChannelRef.current);
@@ -115,14 +125,11 @@ const Dashboard = () => {
           schema: 'public',
           table: 'scheduled_files',
         },
-        (payload) => {
+        (payload: RealtimePayload) => {
           console.log('Real-time update received:', payload);
           
-          // Fix for the TypeScript error by properly checking if the payload has user_id
-          const payloadData = payload.new || {};
-          const userId = payloadData.user_id;
+          const userId = payload.new?.user_id;
           
-          // Only fetch files if it's our own user's data
           if (userId && user && userId === user.id) {
             setTimeout(() => {
               console.log("Triggering fetch after realtime update");
@@ -173,23 +180,18 @@ const Dashboard = () => {
     };
   }, [fetchFiles]);
 
-  // Main effect for initialization
   useEffect(() => {
     console.log("Main effect running, user:", user ? "exists" : "null");
     
-    // If loading is false but we haven't checked the user yet, and user exists
-    // then we need to start loading and fetch files
     if (!isLoading && !hasUserCheckedRef.current && user) {
       console.log("User available but haven't loaded yet, starting load");
       setIsLoading(true);
     }
     
-    // Do the initial fetch if loading
     if (isLoading && user) {
       fetchFiles();
     }
     
-    // Clean up any existing subscriptions to prevent duplicates
     return () => {
       if (realtimeChannelRef.current) {
         console.log("Removing realtime subscription");
@@ -205,7 +207,6 @@ const Dashboard = () => {
     };
   }, [user, isLoading, fetchFiles]);
   
-  // Setup subscriptions once user is available
   useEffect(() => {
     if (!user) return;
     
@@ -216,7 +217,6 @@ const Dashboard = () => {
       checkAndTriggerPendingFiles();
     }, 2000);
     
-    // Only start interval if not already running
     if (refreshIntervalRef.current === null) {
       refreshIntervalRef.current = window.setInterval(() => {
         console.log("Auto-refreshing file list to check for pending deliveries");
@@ -225,12 +225,10 @@ const Dashboard = () => {
     }
     
     return () => {
-      // Only cleanup what was set up in this effect
       clearTimeout(initialCheckTimer);
     };
   }, [user, setupRealtimeSubscription, setupRefreshListener, checkAndTriggerPendingFiles]);
   
-  // Filter files whenever relevant state changes
   useEffect(() => {
     if (initialLoadComplete) {
       filterFiles();
