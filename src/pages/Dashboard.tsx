@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { FileItem } from "@/components/FileCard";
@@ -26,6 +26,27 @@ const Dashboard = () => {
   
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Use a callback for fetchFiles to avoid recreation on every render
+  const fetchFiles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log("Fetching scheduled files");
+      const data = await getScheduledFiles();
+      console.log("Fetched files:", data);
+      setFiles(data);
+      setFilteredFiles(data);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load your files",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     fetchFiles();
@@ -46,13 +67,18 @@ const Dashboard = () => {
     return () => {
       // Cleanup will be handled by the returned function from setupRealtimeSubscription
       cleanup();
-      window.removeEventListener('refresh-file-list', fetchFiles);
+      window.removeEventListener('refresh-file-list', handleRefresh);
     };
-  }, []);
+  }, [fetchFiles]);
+  
+  const handleRefresh = useCallback(() => {
+    console.log("Refresh file list triggered");
+    fetchFiles();
+  }, [fetchFiles]);
   
   const setupRefreshListener = () => {
     // Set up event listener for manual refresh requests
-    window.addEventListener('refresh-file-list', fetchFiles);
+    window.addEventListener('refresh-file-list', handleRefresh);
   };
   
   const setupRealtimeSubscription = () => {
@@ -71,7 +97,10 @@ const Dashboard = () => {
           console.log('Real-time update received:', payload);
           
           // Force refetch all files when any changes occur
-          fetchFiles();
+          setTimeout(() => {
+            console.log("Triggering fetch after realtime update");
+            fetchFiles();
+          }, 500); // Small delay to allow database to settle
           
           // Show toast notifications for status changes
           if (payload.eventType === 'UPDATE' && 
@@ -83,6 +112,7 @@ const Dashboard = () => {
               toast({
                 title: "File Sent",
                 description: `The file "${payload.new.file_name}" has been sent successfully.`,
+                duration: 5000
               });
             } else if (payload.new.status === 'failed' && 
                       (payload.old.status === 'pending' || payload.old.status === 'processing')) {
@@ -90,6 +120,7 @@ const Dashboard = () => {
                 variant: "destructive",
                 title: "File Failed",
                 description: `Failed to send file "${payload.new.file_name}". Please try again.`,
+                duration: 5000
               });
             }
           }
@@ -103,26 +134,6 @@ const Dashboard = () => {
       console.log('Removing realtime subscription');
       supabase.removeChannel(channel);
     };
-  };
-  
-  const fetchFiles = async () => {
-    setIsLoading(true);
-    try {
-      console.log("Fetching scheduled files");
-      const data = await getScheduledFiles();
-      console.log("Fetched files:", data);
-      setFiles(data);
-      setFilteredFiles(data);
-    } catch (error) {
-      console.error("Error fetching files:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load your files",
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
   
   useEffect(() => {
@@ -181,20 +192,13 @@ const Dashboard = () => {
         scheduledDate: formData.scheduledDate
       });
       
-      toast({
-        title: "Success",
-        description: "File scheduled successfully",
-      });
-      
-      fetchFiles();
       setIsDialogOpen(false);
+      // Fetch files after a small delay to ensure the new file is captured
+      setTimeout(() => {
+        fetchFiles();
+      }, 500);
     } catch (error) {
       console.error("Error scheduling file:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to schedule file",
-      });
     }
   };
   
@@ -208,21 +212,14 @@ const Dashboard = () => {
         scheduledDate: formData.scheduledDate
       });
       
-      toast({
-        title: "Success",
-        description: "File schedule updated successfully",
-      });
-      
-      fetchFiles();
       setEditingFile(null);
       setIsDialogOpen(false);
+      // Fetch files after a small delay to ensure updates are reflected
+      setTimeout(() => {
+        fetchFiles();
+      }, 500);
     } catch (error) {
       console.error("Error updating file schedule:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update file schedule",
-      });
     }
   };
   
@@ -230,17 +227,8 @@ const Dashboard = () => {
     try {
       await deleteScheduledFile(id);
       setFiles(prev => prev.filter(file => file.id !== id));
-      toast({
-        title: "Success",
-        description: "File deleted successfully",
-      });
     } catch (error) {
       console.error("Error deleting file:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete file",
-      });
     }
   };
   
@@ -260,16 +248,13 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       await triggerFileSending();
-      // Force refresh file list after manual trigger to show latest statuses
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      await fetchFiles();
+      // Fetchfiles is automatically called by the event listener,
+      // but we'll add a longer delay here to ensure database updates are synced
+      setTimeout(() => {
+        fetchFiles();
+      }, 3000);
     } catch (error) {
       console.error("Error triggering file sending:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to trigger file sending",
-      });
     } finally {
       setIsLoading(false);
     }

@@ -34,12 +34,15 @@ export type Database = {
         Row: {
           access_token: string | null
           created_at: string | null
+          email_id: string | null
+          error_message: string | null
           file_name: string
           file_size: number
           file_type: string
           id: string
           recipient_email: string
           scheduled_date: string
+          sent_at: string | null
           status: string
           storage_path: string
           updated_at: string | null
@@ -48,12 +51,15 @@ export type Database = {
         Insert: {
           access_token?: string | null
           created_at?: string | null
+          email_id?: string | null
+          error_message?: string | null
           file_name: string
           file_size: number
           file_type: string
           id?: string
           recipient_email: string
           scheduled_date: string
+          sent_at?: string | null
           status?: string
           storage_path: string
           updated_at?: string | null
@@ -62,12 +68,15 @@ export type Database = {
         Update: {
           access_token?: string | null
           created_at?: string | null
+          email_id?: string | null
+          error_message?: string | null
           file_name?: string
           file_size?: number
           file_type?: string
           id?: string
           recipient_email?: string
           scheduled_date?: string
+          sent_at?: string | null
           status?: string
           storage_path?: string
           updated_at?: string | null

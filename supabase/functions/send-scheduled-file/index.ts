@@ -34,18 +34,29 @@ const corsHeaders = {
  */
 async function enableRealtimeForScheduledFiles() {
   try {
-    const { error } = await supabaseClient.rpc('supabase_functions.invoke', {
-      name: 'enable-realtime-for-table',
-      body: { table_name: 'scheduled_files' },
+    const { error } = await supabaseClient.rpc('alter_table_replica_identity', {
+      table_name: 'scheduled_files',
+      replica_type: 'FULL'
     });
     
     if (error) {
-      console.error("Error enabling realtime for scheduled_files:", error);
+      console.error("Error setting replica identity for scheduled_files:", error);
     } else {
-      console.log("Successfully enabled realtime for scheduled_files table");
+      console.log("Successfully set replica identity for scheduled_files table");
+    }
+    
+    const { error: pubError } = await supabaseClient.rpc('add_table_to_publication', {
+      table_name: 'scheduled_files',
+      publication_name: 'supabase_realtime'
+    });
+    
+    if (pubError) {
+      console.error("Error adding scheduled_files to publication:", pubError);
+    } else {
+      console.log("Successfully added scheduled_files to realtime publication");
     }
   } catch (error) {
-    console.error("Error calling enable-realtime function:", error);
+    console.error("Error enabling realtime for scheduled_files:", error);
   }
 }
 
@@ -132,13 +143,15 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           apiKey: RESEND_API_KEY,
         });
 
+        console.log("Email send result:", emailResult);
+
         if (emailResult.error) {
           console.error(`Error sending email for file ${file.id}:`, emailResult.error);
           
           // Special handling for Resend free tier limitation
           let errorMessage = emailResult.error.message || "Failed to send email";
           
-          // Default to marking as sent if there's an ID (email was actually sent despite error)
+          // Default to marking as failed
           let status = "failed";
           
           // If we have an email ID, it means the email was actually sent despite the API error
@@ -166,14 +179,23 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           
           // Update file status based on our determination
           try {
+            const updateData = { 
+              status: status, 
+              error_message: errorMessage,
+              updated_at: new Date().toISOString()
+            };
+            
+            if (status === "sent") {
+              updateData.sent_at = new Date().toISOString();
+            }
+            
+            if (emailResult.data?.id) {
+              updateData.email_id = emailResult.data.id;
+            }
+            
             const { error: updateError } = await supabaseClient
               .from("scheduled_files")
-              .update({ 
-                status: status, 
-                error_message: errorMessage,
-                sent_at: status === "sent" ? new Date().toISOString() : null,
-                email_id: emailResult.data?.id || null
-              })
+              .update(updateData)
               .eq("id", file.id);
 
             if (updateError) {
@@ -196,13 +218,19 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           
           // Update file status to 'sent'
           try {
+            const updateData = { 
+              status: "sent", 
+              sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            if (emailResult.data?.id) {
+              updateData.email_id = emailResult.data.id;
+            }
+            
             const { error: updateError } = await supabaseClient
               .from("scheduled_files")
-              .update({ 
-                status: "sent", 
-                sent_at: new Date().toISOString(),
-                email_id: emailResult.data?.id || null
-              })
+              .update(updateData)
               .eq("id", file.id);
 
             if (updateError) {
@@ -231,7 +259,8 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
             .from("scheduled_files")
             .update({ 
               status: "failed",
-              error_message: error.message || "Unknown error occurred"
+              error_message: error.message || "Unknown error occurred",
+              updated_at: new Date().toISOString()
             })
             .eq("id", file.id);
 
@@ -245,7 +274,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
     }
 
     // Force a slight delay before returning to ensure updates propagate
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     console.log(`Processed ${processedCount} files. Success: ${successCount}, Failed: ${failedCount}.`);
     return { success: successCount, failed: failedCount, processed: processedCount };
