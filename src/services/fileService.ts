@@ -32,7 +32,8 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
     toast({
       variant: "destructive",
       title: "Upload Error",
-      description: `Failed to upload file: ${error.message}`
+      description: `Failed to upload file: ${error.message}`,
+      duration: 3000
     });
     throw error;
   }
@@ -68,7 +69,8 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       toast({
         variant: "destructive",
         title: "Authentication Error",
-        description: "User not authenticated"
+        description: "User not authenticated",
+        duration: 3000
       });
       throw new Error("User not authenticated");
     }
@@ -94,14 +96,16 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       toast({
         variant: "destructive",
         title: "Scheduling Error", 
-        description: `Failed to schedule file: ${error.message}`
+        description: `Failed to schedule file: ${error.message}`,
+        duration: 3000
       });
       throw error;
     }
     
     toast({
       title: "Success",
-      description: "File scheduled successfully"
+      description: "File scheduled successfully",
+      duration: 3000
     });
     
     // Check if recipient is using a verified domain in development
@@ -110,7 +114,7 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       toast({
         title: "Resend Free Tier Notice",
         description: "Remember: With Resend's free tier, emails can only be sent to verified addresses",
-        duration: 8000
+        duration: 5000
       });
     }
     
@@ -129,7 +133,8 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     toast({
       variant: "destructive",
       title: "Scheduling Error",
-      description: `Error scheduling file: ${error.message}`
+      description: `Error scheduling file: ${error.message}`,
+      duration: 3000
     });
     throw error;
   }
@@ -150,14 +155,16 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
       toast({
         variant: "destructive",
         title: "Update Error",
-        description: `Failed to update schedule: ${error.message}`
+        description: `Failed to update schedule: ${error.message}`,
+        duration: 3000
       });
       throw error;
     }
     
     toast({
       title: "Success",
-      description: "Schedule updated successfully"
+      description: "Schedule updated successfully",
+      duration: 3000
     });
     
     // Check if the updated date is now or in the past, if so trigger sending
@@ -174,7 +181,8 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
     toast({
       variant: "destructive",
       title: "Update Error",
-      description: `Error updating scheduled file: ${error.message}`
+      description: `Error updating scheduled file: ${error.message}`,
+      duration: 3000
     });
     throw error;
   }
@@ -192,7 +200,8 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       toast({
         variant: "destructive",
         title: "Delete Error",
-        description: `Failed to delete file: ${error.message}`
+        description: `Failed to delete file: ${error.message}`,
+        duration: 3000
       });
       throw error;
     }
@@ -215,21 +224,24 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       toast({
         variant: "destructive",
         title: "Delete Error",
-        description: `Failed to delete record: ${dbError.message}`
+        description: `Failed to delete record: ${dbError.message}`,
+        duration: 3000
       });
       throw dbError;
     }
     
     toast({
       title: "Success",
-      description: "File deleted successfully"
+      description: "File deleted successfully",
+      duration: 3000
     });
   } catch (error: any) {
     console.error("Error deleting scheduled file:", error);
     toast({
       variant: "destructive",
       title: "Delete Error",
-      description: `Error deleting scheduled file: ${error.message}`
+      description: `Error deleting scheduled file: ${error.message}`,
+      duration: 3000
     });
     throw error;
   }
@@ -242,7 +254,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       toast({
         variant: "destructive",
         title: "Authentication Error",
-        description: "User not authenticated"
+        description: "User not authenticated",
+        duration: 3000
       });
       return [];
     }
@@ -257,7 +270,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       toast({
         variant: "destructive",
         title: "Fetch Error",
-        description: `Failed to fetch files: ${error.message}`
+        description: `Failed to fetch files: ${error.message}`,
+        duration: 3000
       });
       throw error;
     }
@@ -279,7 +293,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
     toast({
       variant: "destructive",
       title: "Fetch Error",
-      description: `Error fetching scheduled files: ${error.message}`
+      description: `Error fetching scheduled files: ${error.message}`,
+      duration: 3000
     });
     return [];
   }
@@ -377,7 +392,7 @@ export const triggerFileSending = async (): Promise<any> => {
     toast({
       title: "Processing",
       description: "Triggering file sending...",
-      duration: 3000
+      duration: 2000
     });
     
     // Using the Supabase URL from the client to construct the function URL
@@ -416,13 +431,13 @@ export const triggerFileSending = async (): Promise<any> => {
       toast({
         title: "No Files to Process",
         description: "No files were ready to be sent at this time",
-        duration: 4000
+        duration: 3000
       });
     } else if (data?.success > 0) {
       toast({
         title: "Success",
         description: `Successfully processed ${data.success} file(s)`,
-        duration: 5000
+        duration: 3000
       });
       
       // If using Resend free tier and some files failed, explain the limitations
@@ -430,7 +445,7 @@ export const triggerFileSending = async (): Promise<any> => {
         toast({
           title: "Resend Free Tier Notice",
           description: "Note: With Resend's free tier, emails can only be sent to verified addresses",
-          duration: 8000
+          duration: 4000
         });
       }
     } else if (data?.failed > 0) {
@@ -438,20 +453,20 @@ export const triggerFileSending = async (): Promise<any> => {
         variant: "destructive", 
         title: "Processing Error",
         description: `Failed to process ${data.failed} file(s)`,
-        duration: 5000
+        duration: 3000
       });
       
       // Add explanation about Resend free tier limitations
       toast({
         title: "Resend Free Tier Notice",
         description: "If using Resend's free tier, you can only send to verified email addresses",
-        duration: 8000
+        duration: 4000
       });
     } else {
       toast({
         title: "No Changes",
         description: "No changes were made to any files",
-        duration: 4000
+        duration: 3000
       });
     }
     
@@ -466,13 +481,15 @@ export const triggerFileSending = async (): Promise<any> => {
       toast({
         variant: "destructive",
         title: "Connection Error",
-        description: "Cannot connect to the Edge Function. Please check your network connection."
+        description: "Cannot connect to the Edge Function. Please check your network connection.",
+        duration: 3000
       });
     } else {
       toast({
         variant: "destructive",
         title: "Processing Error",
-        description: `Error triggering file sending: ${error.message || "Unknown error"}`
+        description: `Error triggering file sending: ${error.message || "Unknown error"}`,
+        duration: 3000
       });
     }
     

@@ -42,6 +42,7 @@ const Dashboard = () => {
         variant: "destructive",
         title: "Error",
         description: "Failed to load your files",
+        duration: 3000
       });
     } finally {
       setIsLoading(false);
@@ -56,11 +57,39 @@ const Dashboard = () => {
     // Check for files that need sending immediately on dashboard load
     const triggerInitialCheck = async () => {
       try {
-        await triggerFileSending();
+        if (user) {
+          await triggerFileSending();
+        }
       } catch (error) {
         console.error("Error during initial file sending check:", error);
       }
     };
+    
+    // Auto-refresh every 60 seconds to check for files that need to be sent
+    const intervalId = setInterval(() => {
+      console.log("Auto-refreshing file list to check for pending deliveries");
+      fetchFiles();
+      
+      // Also check if there are any files that need to be triggered automatically
+      const checkPendingFiles = async () => {
+        try {
+          const now = new Date();
+          // Check if any pending files have reached their scheduled time
+          const pendingPastDue = files.filter(
+            file => file.status === 'pending' && file.scheduledDate <= now
+          );
+          
+          if (pendingPastDue.length > 0) {
+            console.log(`Found ${pendingPastDue.length} pending files past due, triggering send`);
+            await triggerFileSending();
+          }
+        } catch (error) {
+          console.error("Error checking pending files during auto-refresh:", error);
+        }
+      };
+      
+      checkPendingFiles();
+    }, 60000); // Check every minute
     
     triggerInitialCheck();
     
@@ -68,8 +97,9 @@ const Dashboard = () => {
       // Cleanup will be handled by the returned function from setupRealtimeSubscription
       cleanup();
       window.removeEventListener('refresh-file-list', handleRefresh);
+      clearInterval(intervalId);
     };
-  }, [fetchFiles]);
+  }, [fetchFiles, user, files]);
   
   const handleRefresh = useCallback(() => {
     console.log("Refresh file list triggered");
@@ -100,7 +130,7 @@ const Dashboard = () => {
           setTimeout(() => {
             console.log("Triggering fetch after realtime update");
             fetchFiles();
-          }, 500); // Small delay to allow database to settle
+          }, 1000); // Small delay to allow database to settle
           
           // Show toast notifications for status changes
           if (payload.eventType === 'UPDATE' && 
@@ -112,7 +142,7 @@ const Dashboard = () => {
               toast({
                 title: "File Sent",
                 description: `The file "${payload.new.file_name}" has been sent successfully.`,
-                duration: 5000
+                duration: 3000
               });
             } else if (payload.new.status === 'failed' && 
                       (payload.old.status === 'pending' || payload.old.status === 'processing')) {
@@ -120,7 +150,7 @@ const Dashboard = () => {
                 variant: "destructive",
                 title: "File Failed",
                 description: `Failed to send file "${payload.new.file_name}". Please try again.`,
-                duration: 5000
+                duration: 3000
               });
             }
           }
@@ -196,7 +226,7 @@ const Dashboard = () => {
       // Fetch files after a small delay to ensure the new file is captured
       setTimeout(() => {
         fetchFiles();
-      }, 500);
+      }, 1000);
     } catch (error) {
       console.error("Error scheduling file:", error);
     }
@@ -217,7 +247,7 @@ const Dashboard = () => {
       // Fetch files after a small delay to ensure updates are reflected
       setTimeout(() => {
         fetchFiles();
-      }, 500);
+      }, 1000);
     } catch (error) {
       console.error("Error updating file schedule:", error);
     }
@@ -252,7 +282,7 @@ const Dashboard = () => {
       // but we'll add a longer delay here to ensure database updates are synced
       setTimeout(() => {
         fetchFiles();
-      }, 3000);
+      }, 4000);
     } catch (error) {
       console.error("Error triggering file sending:", error);
     } finally {

@@ -103,7 +103,10 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
         // First, update the status to "processing" to prevent duplicate sending
         const { error: updateProcessingError } = await supabaseClient
           .from("scheduled_files")
-          .update({ status: "processing" })
+          .update({ 
+            status: "processing",
+            updated_at: new Date().toISOString()
+          })
           .eq("id", file.id)
           .eq("status", "pending"); // Only update if still pending
           
