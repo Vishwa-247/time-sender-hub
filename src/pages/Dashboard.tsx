@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { FileItem } from "@/components/FileCard";
@@ -22,14 +22,20 @@ const Dashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  const realtimeChannelRef = useRef<any>(null);
+  const refreshIntervalRef = useRef<number | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
   
   const fetchFiles = useCallback(async () => {
-    setIsLoading(true);
+    if (!user) return;
+    
     try {
       console.log("Fetching scheduled files");
+      setIsLoading(true);
       const data = await getScheduledFiles();
       console.log("Fetched files:", data);
       setFiles(data);
@@ -44,11 +50,12 @@ const Dashboard = () => {
       });
     } finally {
       setIsLoading(false);
+      setInitialLoadComplete(true);
     }
-  }, [toast]);
+  }, [toast, user]);
 
   const checkAndTriggerPendingFiles = useCallback(async () => {
-    if (!user) return;
+    if (!user || !initialLoadComplete) return;
     
     try {
       const now = new Date();
@@ -66,38 +73,11 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error checking pending files:", error);
     }
-  }, [user, files, fetchFiles]);
+  }, [user, files, fetchFiles, initialLoadComplete]);
 
-  useEffect(() => {
-    fetchFiles();
-    const cleanup = setupRealtimeSubscription();
-    setupRefreshListener();
+  const setupRealtimeSubscription = useCallback(() => {
+    if (!user || realtimeChannelRef.current) return () => {};
     
-    checkAndTriggerPendingFiles();
-    
-    const intervalId = setInterval(() => {
-      console.log("Auto-refreshing file list to check for pending deliveries");
-      fetchFiles();
-      checkAndTriggerPendingFiles();
-    }, 30000);
-    
-    return () => {
-      cleanup();
-      window.removeEventListener('refresh-file-list', handleRefresh);
-      clearInterval(intervalId);
-    };
-  }, [fetchFiles, user, checkAndTriggerPendingFiles]);
-  
-  const handleRefresh = useCallback(() => {
-    console.log("Refresh file list triggered");
-    fetchFiles();
-  }, [fetchFiles]);
-  
-  const setupRefreshListener = () => {
-    window.addEventListener('refresh-file-list', handleRefresh);
-  };
-  
-  const setupRealtimeSubscription = () => {
     console.log("Setting up realtime subscription for scheduled_files table");
     
     const channel = supabase
@@ -143,16 +123,68 @@ const Dashboard = () => {
       .subscribe((status) => {
         console.log('Realtime subscription status:', status);
       });
+      
+    realtimeChannelRef.current = channel;
     
     return () => {
       console.log('Removing realtime subscription');
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+        realtimeChannelRef.current = null;
+      }
     };
-  };
+  }, [fetchFiles, toast, user]);
+  
+  const setupRefreshListener = useCallback(() => {
+    const handleRefresh = () => {
+      console.log("Refresh file list triggered");
+      fetchFiles();
+    };
+    
+    window.addEventListener('refresh-file-list', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-file-list', handleRefresh);
+    };
+  }, [fetchFiles]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    fetchFiles();
+    
+    const cleanupRealtime = setupRealtimeSubscription();
+    
+    const cleanupRefresh = setupRefreshListener();
+    
+    const initialCheckTimer = setTimeout(() => {
+      checkAndTriggerPendingFiles();
+    }, 2000);
+    
+    if (refreshIntervalRef.current === null) {
+      refreshIntervalRef.current = window.setInterval(() => {
+        console.log("Auto-refreshing file list to check for pending deliveries");
+        checkAndTriggerPendingFiles();
+      }, 30000);
+    }
+    
+    return () => {
+      cleanupRealtime();
+      cleanupRefresh();
+      clearTimeout(initialCheckTimer);
+      
+      if (refreshIntervalRef.current !== null) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [user, fetchFiles, setupRealtimeSubscription, setupRefreshListener, checkAndTriggerPendingFiles]);
   
   useEffect(() => {
-    filterFiles();
-  }, [searchQuery, statusFilter, activeTab, files]);
+    if (initialLoadComplete) {
+      filterFiles();
+    }
+  }, [searchQuery, statusFilter, activeTab, files, initialLoadComplete]);
   
   const filterFiles = () => {
     let filtered = [...files];
