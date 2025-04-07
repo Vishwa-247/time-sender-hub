@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
@@ -117,8 +118,12 @@ const Dashboard = () => {
         (payload) => {
           console.log('Real-time update received:', payload);
           
+          // Fix for the TypeScript error by properly checking if the payload has user_id
+          const payloadData = payload.new || {};
+          const userId = payloadData.user_id;
+          
           // Only fetch files if it's our own user's data
-          if (payload.new && payload.new.user_id === user.id) {
+          if (userId && user && userId === user.id) {
             setTimeout(() => {
               console.log("Triggering fetch after realtime update");
               fetchFiles();
