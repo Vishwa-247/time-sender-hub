@@ -119,13 +119,6 @@ const ScheduleForm = ({ onSubmit, editingFile = null }: ScheduleFormProps) => {
       setDate(undefined);
       reset();
     }
-    
-    toast({
-      title: "Success",
-      description: editingFile 
-        ? "Schedule updated successfully" 
-        : "File scheduled successfully"
-    });
   };
 
   return (

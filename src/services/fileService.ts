@@ -344,7 +344,7 @@ export const triggerFileSending = async (): Promise<any> => {
     console.log("File sending result:", data);
     
     // Add a longer delay to allow database updates to sync
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Force refresh the file list to show updated statuses
     window.dispatchEvent(new CustomEvent('refresh-file-list'));
@@ -355,32 +355,21 @@ export const triggerFileSending = async (): Promise<any> => {
     } else if (data?.success > 0) {
       toast.success(`Successfully processed ${data.success} file(s)`);
       
-      // Specialized message about Resend limitations if some failed
-      if ((import.meta.env.DEV || import.meta.env.MODE === 'development') && data?.failed > 0) {
-        toast.info(
-          "Note: With Resend free tier, emails can only be sent to verified addresses",
-          { duration: 5000 }
-        );
-      }
-      
+      // If using Resend free tier and some files failed, explain the limitations
       if (data?.failed > 0) {
-        toast.error(`Failed to process ${data.failed} file(s)`);
-        
-        // Add explanation about possible causes
         toast.info(
-          "If emails were received but marked as failed, this may be due to Resend API limitations", 
-          { duration: 8000 }
+          "Note: With Resend's free tier, emails can only be sent to verified addresses",
+          { duration: 5000 }
         );
       }
     } else if (data?.failed > 0) {
       toast.error(`Failed to process ${data.failed} file(s)`);
       
-      if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-        toast.error(
-          "If using Resend's free tier, you can only send to verified email addresses",
-          { duration: 8000 }
-        );
-      }
+      // Add explanation about Resend free tier limitations
+      toast.info(
+        "If using Resend's free tier, you can only send to verified email addresses",
+        { duration: 8000 }
+      );
     } else {
       toast.info("No changes were made to any files");
     }
@@ -394,7 +383,6 @@ export const triggerFileSending = async (): Promise<any> => {
         error.message?.includes("Network") ||
         error.message?.includes("CORS")) {
       toast.error("Cannot connect to the Edge Function. Please check your network connection.");
-      console.log("To run Edge Functions locally, use: supabase functions serve");
     } else {
       toast.error(`Error triggering file sending: ${error.message || "Unknown error"}`);
     }

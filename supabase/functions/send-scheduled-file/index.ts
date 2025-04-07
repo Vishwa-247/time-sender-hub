@@ -23,6 +23,12 @@ if (!RESEND_API_KEY) {
   console.error("RESEND_API_KEY is not set in environment variables");
 }
 
+// CORS headers for all responses
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 /**
  * Enable Postgres replication for the scheduled_files table
  */
@@ -83,6 +89,18 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
       try {
         console.log(`Processing file ${file.id} scheduled for ${file.scheduled_date} to ${file.recipient_email}`);
         
+        // First, update the status to "processing" to prevent duplicate sending
+        const { error: updateProcessingError } = await supabaseClient
+          .from("scheduled_files")
+          .update({ status: "processing" })
+          .eq("id", file.id)
+          .eq("status", "pending"); // Only update if still pending
+          
+        if (updateProcessingError) {
+          console.error(`Error updating file ${file.id} status to processing:`, updateProcessingError);
+          // Continue anyway, but log the issue
+        }
+        
         // Generate access URL
         const accessUrl = generateAccessUrl(file.access_token);
         console.log(`Generated access URL: ${accessUrl}`);
@@ -120,28 +138,33 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           // Special handling for Resend free tier limitation
           let errorMessage = emailResult.error.message || "Failed to send email";
           
-          // Default to marking as failed
+          // Default to marking as sent if there's an ID (email was actually sent despite error)
           let status = "failed";
           
-          // If the error is about sending to unverified addresses on free tier but we still
-          // believe email delivery might have been attempted or completed
+          // If we have an email ID, it means the email was actually sent despite the API error
+          if (emailResult.data && emailResult.data.id) {
+            status = "sent";
+            console.log(`Email appears to have been sent despite API error. ID: ${emailResult.data.id}`);
+          }
+          
+          // If the error is about sending to unverified addresses on free tier
           if (emailResult.error.statusCode === 403 && 
               emailResult.error.message && 
-              (emailResult.error.message.includes("can only send testing emails") || 
+              (emailResult.error.message.includes("can only send") || 
                emailResult.error.message.includes("unverified"))) {
             
-            errorMessage = "Resend free tier limitation: Can only send to verified email addresses. " + 
-                          "Either verify this recipient or upgrade your Resend account.";
-            
-            // For development/testing purposes or if there's evidence message was sent
-            // despite the API response indicating otherwise, mark as "sent" to fix inconsistency
-            if (emailResult.data && (emailResult.data.id || process.env.NODE_ENV === 'development')) {
+            // For Resend free tier limitations, we may still have delivered the email
+            if (!emailResult.data || !emailResult.data.id) {
+              errorMessage = "Resend free tier limitation: Can only send to verified email addresses. " + 
+                           "Either verify this recipient or upgrade your Resend account.";
+            } else {
+              // If we got an ID, the email was probably sent despite the error
               status = "sent";
-              console.log(`Message appears to have been sent despite API error. Marking as sent with ID: ${emailResult.data?.id || 'unknown'}`);
+              errorMessage = "Email delivered, but Resend reported a free tier limitation.";
             }
           }
           
-          // Update file status to 'failed' or special handling for dev mode
+          // Update file status based on our determination
           try {
             const { error: updateError } = await supabaseClient
               .from("scheduled_files")
@@ -162,11 +185,10 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
             console.error(`Exception when updating status for file ${file.id}:`, updateErr);
           }
           
-          if (status === "failed") {
-            failedCount++;
-          } else {
-            // Count as success for our special case where email appears sent
+          if (status === "sent") {
             successCount++;
+          } else {
+            failedCount++;
           }
         } else {
           // Email was definitely sent successfully
@@ -174,36 +196,21 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           
           // Update file status to 'sent'
           try {
-            // First check if the file wasn't already sent by another process
-            const { data: currentFile, error: checkError } = await supabaseClient
+            const { error: updateError } = await supabaseClient
               .from("scheduled_files")
-              .select("status")
-              .eq("id", file.id)
-              .single();
-              
-            if (checkError) {
-              console.error(`Error checking current file status for ${file.id}:`, checkError);
-            } else if (currentFile && currentFile.status === "pending") {
-              // Only update if still pending
-              const { error: updateError } = await supabaseClient
-                .from("scheduled_files")
-                .update({ 
-                  status: "sent", 
-                  sent_at: new Date().toISOString(),
-                  email_id: emailResult.data?.id || null
-                })
-                .eq("id", file.id);
+              .update({ 
+                status: "sent", 
+                sent_at: new Date().toISOString(),
+                email_id: emailResult.data?.id || null
+              })
+              .eq("id", file.id);
 
-              if (updateError) {
-                console.error(`Error updating file status for file ${file.id}:`, updateError);
-                failedCount++;
-              } else {
-                successCount++;
-                console.log(`Successfully updated file ${file.id} status to sent`);
-              }
+            if (updateError) {
+              console.error(`Error updating file status for file ${file.id}:`, updateError);
+              failedCount++;
             } else {
-              console.log(`File ${file.id} was already processed with status: ${currentFile?.status}`);
               successCount++;
+              console.log(`Successfully updated file ${file.id} status to sent`);
             }
           } catch (updateErr) {
             console.error(`Exception when updating status to sent for file ${file.id}:`, updateErr);
@@ -344,10 +351,7 @@ async function sendEmail({
  */
 serve(async (req) => {
   // Set CORS headers for the response
-  const headers = new Headers();
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  const headers = new Headers(corsHeaders);
 
   // Handle OPTIONS request for CORS preflight
   if (req.method === "OPTIONS") {

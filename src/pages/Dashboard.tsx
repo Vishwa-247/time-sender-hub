@@ -29,7 +29,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchFiles();
-    setupRealtimeSubscription();
+    const cleanup = setupRealtimeSubscription();
     setupRefreshListener();
     
     // Check for files that need sending immediately on dashboard load
@@ -44,7 +44,8 @@ const Dashboard = () => {
     triggerInitialCheck();
     
     return () => {
-      // Cleanup will be handled in the setupRealtimeSubscription function
+      // Cleanup will be handled by the returned function from setupRealtimeSubscription
+      cleanup();
       window.removeEventListener('refresh-file-list', fetchFiles);
     };
   }, []);
@@ -77,16 +78,18 @@ const Dashboard = () => {
               payload.new && payload.old && 
               payload.new.status !== payload.old.status) {
             
-            if (payload.new.status === 'sent' && payload.old.status === 'pending') {
+            if (payload.new.status === 'sent' && 
+                (payload.old.status === 'pending' || payload.old.status === 'processing')) {
               toast({
                 title: "File Sent",
                 description: `The file "${payload.new.file_name}" has been sent successfully.`,
               });
-            } else if (payload.new.status === 'failed' && payload.old.status === 'pending') {
+            } else if (payload.new.status === 'failed' && 
+                      (payload.old.status === 'pending' || payload.old.status === 'processing')) {
               toast({
+                variant: "destructive",
                 title: "File Failed",
                 description: `Failed to send file "${payload.new.file_name}". Please try again.`,
-                variant: "destructive",
               });
             }
           }
@@ -113,9 +116,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching files:", error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to load your files",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -188,9 +191,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error scheduling file:", error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to schedule file",
-        variant: "destructive",
       });
     }
   };
@@ -216,9 +219,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error updating file schedule:", error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to update file schedule",
-        variant: "destructive",
       });
     }
   };
@@ -234,9 +237,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error deleting file:", error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to delete file",
-        variant: "destructive",
       });
     }
   };
@@ -258,15 +261,14 @@ const Dashboard = () => {
       setIsLoading(true);
       await triggerFileSending();
       // Force refresh file list after manual trigger to show latest statuses
-      setTimeout(() => {
-        fetchFiles();
-      }, 1500);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await fetchFiles();
     } catch (error) {
       console.error("Error triggering file sending:", error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to trigger file sending",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
