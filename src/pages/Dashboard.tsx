@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
@@ -27,7 +26,6 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Use a callback for fetchFiles to avoid recreation on every render
   const fetchFiles = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -49,57 +47,46 @@ const Dashboard = () => {
     }
   }, [toast]);
 
+  const checkAndTriggerPendingFiles = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const now = new Date();
+      const pendingPastDue = files.filter(
+        file => file.status === 'pending' && new Date(file.scheduledDate) <= now
+      );
+      
+      if (pendingPastDue.length > 0) {
+        console.log(`Found ${pendingPastDue.length} pending files past due, triggering send`);
+        await triggerFileSending();
+        setTimeout(() => {
+          fetchFiles();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error("Error checking pending files:", error);
+    }
+  }, [user, files, fetchFiles]);
+
   useEffect(() => {
     fetchFiles();
     const cleanup = setupRealtimeSubscription();
     setupRefreshListener();
     
-    // Check for files that need sending immediately on dashboard load
-    const triggerInitialCheck = async () => {
-      try {
-        if (user) {
-          await triggerFileSending();
-        }
-      } catch (error) {
-        console.error("Error during initial file sending check:", error);
-      }
-    };
+    checkAndTriggerPendingFiles();
     
-    // Auto-refresh every 60 seconds to check for files that need to be sent
     const intervalId = setInterval(() => {
       console.log("Auto-refreshing file list to check for pending deliveries");
       fetchFiles();
-      
-      // Also check if there are any files that need to be triggered automatically
-      const checkPendingFiles = async () => {
-        try {
-          const now = new Date();
-          // Check if any pending files have reached their scheduled time
-          const pendingPastDue = files.filter(
-            file => file.status === 'pending' && file.scheduledDate <= now
-          );
-          
-          if (pendingPastDue.length > 0) {
-            console.log(`Found ${pendingPastDue.length} pending files past due, triggering send`);
-            await triggerFileSending();
-          }
-        } catch (error) {
-          console.error("Error checking pending files during auto-refresh:", error);
-        }
-      };
-      
-      checkPendingFiles();
-    }, 60000); // Check every minute
-    
-    triggerInitialCheck();
+      checkAndTriggerPendingFiles();
+    }, 30000);
     
     return () => {
-      // Cleanup will be handled by the returned function from setupRealtimeSubscription
       cleanup();
       window.removeEventListener('refresh-file-list', handleRefresh);
       clearInterval(intervalId);
     };
-  }, [fetchFiles, user, files]);
+  }, [fetchFiles, user, checkAndTriggerPendingFiles]);
   
   const handleRefresh = useCallback(() => {
     console.log("Refresh file list triggered");
@@ -107,7 +94,6 @@ const Dashboard = () => {
   }, [fetchFiles]);
   
   const setupRefreshListener = () => {
-    // Set up event listener for manual refresh requests
     window.addEventListener('refresh-file-list', handleRefresh);
   };
   
@@ -126,13 +112,11 @@ const Dashboard = () => {
         (payload) => {
           console.log('Real-time update received:', payload);
           
-          // Force refetch all files when any changes occur
           setTimeout(() => {
             console.log("Triggering fetch after realtime update");
             fetchFiles();
-          }, 1000); // Small delay to allow database to settle
+          }, 1000);
           
-          // Show toast notifications for status changes
           if (payload.eventType === 'UPDATE' && 
               payload.new && payload.old && 
               payload.new.status !== payload.old.status) {
@@ -141,7 +125,7 @@ const Dashboard = () => {
                 (payload.old.status === 'pending' || payload.old.status === 'processing')) {
               toast({
                 title: "File Sent",
-                description: `The file "${payload.new.file_name}" has been sent successfully.`,
+                description: `The file "${payload.new.file_name}" has been sent.`,
                 duration: 3000
               });
             } else if (payload.new.status === 'failed' && 
@@ -149,7 +133,7 @@ const Dashboard = () => {
               toast({
                 variant: "destructive",
                 title: "File Failed",
-                description: `Failed to send file "${payload.new.file_name}". Please try again.`,
+                description: `Failed to send "${payload.new.file_name}".`,
                 duration: 3000
               });
             }
@@ -223,7 +207,6 @@ const Dashboard = () => {
       });
       
       setIsDialogOpen(false);
-      // Fetch files after a small delay to ensure the new file is captured
       setTimeout(() => {
         fetchFiles();
       }, 1000);
@@ -244,7 +227,6 @@ const Dashboard = () => {
       
       setEditingFile(null);
       setIsDialogOpen(false);
-      // Fetch files after a small delay to ensure updates are reflected
       setTimeout(() => {
         fetchFiles();
       }, 1000);
@@ -278,8 +260,6 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       await triggerFileSending();
-      // Fetchfiles is automatically called by the event listener,
-      // but we'll add a longer delay here to ensure database updates are synced
       setTimeout(() => {
         fetchFiles();
       }, 4000);

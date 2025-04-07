@@ -18,19 +18,24 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Cron job triggered at:", new Date().toISOString());
+    const currentTime = new Date();
+    console.log("Cron job triggered at:", currentTime.toISOString());
     
-    // Check if there are any pending emails to send
+    // Check if there are any pending emails to send using UTC timezone comparison
     const { data: pendingFiles, error: countError } = await supabase
       .from("scheduled_files")
-      .select("id")
+      .select("id, scheduled_date")
       .eq("status", "pending")
-      .lte("scheduled_date", new Date().toISOString());
+      .lte("scheduled_date", currentTime.toISOString());
     
     if (countError) {
       console.error("Error checking pending files:", countError);
     } else {
-      console.log(`Found ${pendingFiles?.length || 0} pending files to process`);
+      if (pendingFiles && pendingFiles.length > 0) {
+        console.log(`Found ${pendingFiles.length} pending files to process:`, pendingFiles);
+      } else {
+        console.log("No pending files found to process at this time");
+      }
     }
     
     // Make a direct HTTP request to the send-scheduled-file function
@@ -53,6 +58,25 @@ serve(async (req) => {
 
     const sendScheduledData = await response.json();
     console.log("Send scheduled function result:", sendScheduledData);
+
+    // If any files were processed, let's update the system by checking for new pending files
+    if (sendScheduledData && (sendScheduledData.success > 0 || sendScheduledData.failed > 0)) {
+      // Give the database a moment to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if there are any new pending emails that are ready to send
+      const { data: newPendingFiles, error: newCountError } = await supabase
+        .from("scheduled_files")
+        .select("id")
+        .eq("status", "pending")
+        .lte("scheduled_date", new Date().toISOString());
+        
+      if (newCountError) {
+        console.error("Error checking for new pending files:", newCountError);
+      } else if (newPendingFiles && newPendingFiles.length > 0) {
+        console.log(`Found ${newPendingFiles.length} new pending files that are ready to be sent`);
+      }
+    }
 
     return new Response(
       JSON.stringify({

@@ -75,12 +75,13 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
     // Try to enable realtime for the scheduled_files table (if not already enabled)
     await enableRealtimeForScheduledFiles();
     
-    // Fetch all pending scheduled files
+    // Fetch all pending scheduled files with timezone-aware comparison
+    const currentUtcTime = new Date().toISOString();
     const { data: scheduledFiles, error: selectError } = await supabaseClient
       .from("scheduled_files")
       .select("*")
       .eq("status", "pending")
-      .lte("scheduled_date", new Date().toISOString());
+      .lte("scheduled_date", currentUtcTime);
 
     if (selectError) {
       console.error("Error fetching scheduled files:", selectError);
@@ -132,17 +133,29 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           console.log("For testing in development, consider setting the recipient to your own verified email address.");
         }
         
+        // New improved email template
+        const emailTemplate = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <h2 style="color: #4F46E5;">Time Capsule</h2>
+            <p>Hi there,</p>
+            <p>You've received a scheduled file through <strong>Time Capsule</strong>, a platform for sending important files at the right time.</p>
+            <p>🔗 Click the link below to access your file:</p>
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${accessUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">👉 Access Your File</a>
+            </div>
+            <p>This file was scheduled to be sent to you by one of our users. If you were expecting something important, this is probably it.</p>
+            <p>If you're having trouble accessing the file or the link has expired, please contact the sender.</p>
+            <p>Thanks,<br>— The Time Capsule Team</p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+              <p>If the button doesn't work, you can copy and paste this link in your browser: ${accessUrl}</p>
+            </div>
+          </div>
+        `;
+        
         const emailResult = await sendEmail({
           to: file.recipient_email,
           subject: "Your TimeCapsule File is Ready!",
-          body: `
-            <p>Hello!</p>
-            <p>Your TimeCapsule file is now available. You can access it via the following link:</p>
-            <p><a href="${accessUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0;">Access Your File</a></p>
-            <p>If the button doesn't work, you can copy and paste this link in your browser:</p>
-            <p>${accessUrl}</p>
-            <p>Best regards,<br>TimeCapsule Team</p>
-          `,
+          body: emailTemplate,
           apiKey: RESEND_API_KEY,
         });
 

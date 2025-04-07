@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "@/hooks/use-toast";
@@ -68,7 +67,7 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     if (!userData.user) {
       toast({
         variant: "destructive",
-        title: "Authentication Error",
+        title: "Auth Error",
         description: "User not authenticated",
         duration: 3000
       });
@@ -95,8 +94,8 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     if (error) {
       toast({
         variant: "destructive",
-        title: "Scheduling Error", 
-        description: `Failed to schedule file: ${error.message}`,
+        title: "Error", 
+        description: `Failed to schedule: ${error.message}`,
         duration: 3000
       });
       throw error;
@@ -105,20 +104,20 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     toast({
       title: "Success",
       description: "File scheduled successfully",
-      duration: 3000
+      duration: 2000
     });
     
     // Check if recipient is using a verified domain in development
     if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
       // Show a notice about Resend limitations in development
       toast({
-        title: "Resend Free Tier Notice",
-        description: "Remember: With Resend's free tier, emails can only be sent to verified addresses",
-        duration: 5000
+        title: "Free Tier Notice",
+        description: "With free tier, emails only go to verified addresses",
+        duration: 3000
       });
     }
     
-    // Automatically trigger the file sending process to check if it should be sent immediately
+    // Automatically trigger the file sending process if it should be sent immediately
     const now = new Date();
     if (params.scheduledDate <= now) {
       try {
@@ -132,8 +131,8 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     console.error("Error scheduling file:", error);
     toast({
       variant: "destructive",
-      title: "Scheduling Error",
-      description: `Error scheduling file: ${error.message}`,
+      title: "Schedule Error",
+      description: `Error: ${error.message}`,
       duration: 3000
     });
     throw error;
@@ -155,7 +154,7 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
       toast({
         variant: "destructive",
         title: "Update Error",
-        description: `Failed to update schedule: ${error.message}`,
+        description: `Failed: ${error.message}`,
         duration: 3000
       });
       throw error;
@@ -163,8 +162,8 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
     
     toast({
       title: "Success",
-      description: "Schedule updated successfully",
-      duration: 3000
+      description: "Schedule updated",
+      duration: 2000
     });
     
     // Check if the updated date is now or in the past, if so trigger sending
@@ -181,7 +180,7 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
     toast({
       variant: "destructive",
       title: "Update Error",
-      description: `Error updating scheduled file: ${error.message}`,
+      description: `Error: ${error.message}`,
       duration: 3000
     });
     throw error;
@@ -391,7 +390,7 @@ export const triggerFileSending = async (): Promise<any> => {
   try {
     toast({
       title: "Processing",
-      description: "Triggering file sending...",
+      description: "Sending files...",
       duration: 2000
     });
     
@@ -414,7 +413,7 @@ export const triggerFileSending = async (): Promise<any> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Error response from send-scheduled-file:", errorText);
-      throw new Error(`Failed to trigger file sending: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to trigger: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
@@ -429,44 +428,37 @@ export const triggerFileSending = async (): Promise<any> => {
     // Now show toast messages with the results
     if (data?.processed === 0) {
       toast({
-        title: "No Files to Process",
-        description: "No files were ready to be sent at this time",
-        duration: 3000
+        title: "No Files to Send",
+        description: "No files ready to be sent at this time",
+        duration: 2000
       });
     } else if (data?.success > 0) {
       toast({
         title: "Success",
-        description: `Successfully processed ${data.success} file(s)`,
-        duration: 3000
+        description: `Sent ${data.success} file(s)`,
+        duration: 2000
       });
       
       // If using Resend free tier and some files failed, explain the limitations
       if (data?.failed > 0) {
         toast({
-          title: "Resend Free Tier Notice",
-          description: "Note: With Resend's free tier, emails can only be sent to verified addresses",
-          duration: 4000
+          title: "Free Tier Notice",
+          description: "Some emails failed - verify recipient emails",
+          duration: 3000
         });
       }
     } else if (data?.failed > 0) {
       toast({
         variant: "destructive", 
-        title: "Processing Error",
-        description: `Failed to process ${data.failed} file(s)`,
-        duration: 3000
-      });
-      
-      // Add explanation about Resend free tier limitations
-      toast({
-        title: "Resend Free Tier Notice",
-        description: "If using Resend's free tier, you can only send to verified email addresses",
-        duration: 4000
+        title: "Error",
+        description: `Failed to send ${data.failed} file(s)`,
+        duration: 2000
       });
     } else {
       toast({
         title: "No Changes",
-        description: "No changes were made to any files",
-        duration: 3000
+        description: "No changes made to any files",
+        duration: 2000
       });
     }
     
@@ -481,15 +473,15 @@ export const triggerFileSending = async (): Promise<any> => {
       toast({
         variant: "destructive",
         title: "Connection Error",
-        description: "Cannot connect to the Edge Function. Please check your network connection.",
-        duration: 3000
+        description: "Cannot connect to the server",
+        duration: 2000
       });
     } else {
       toast({
         variant: "destructive",
-        title: "Processing Error",
-        description: `Error triggering file sending: ${error.message || "Unknown error"}`,
-        duration: 3000
+        title: "Error",
+        description: `${error.message || "Unknown error"}`,
+        duration: 2000
       });
     }
     
