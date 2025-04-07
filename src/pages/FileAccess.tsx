@@ -1,11 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { File, Download, ArrowLeft, Loader2, Shield } from "lucide-react";
+import { File, Download, ArrowLeft, Loader2, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFileByToken } from "@/services/fileService";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const FileAccess = () => {
   const { token } = useParams<{ token: string }>();
@@ -17,6 +18,7 @@ const FileAccess = () => {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchFile = async () => {
@@ -77,10 +79,27 @@ const FileAccess = () => {
   };
 
   const handleDownload = () => {
-    if (fileData) {
-      // Open in new tab and also trigger download
-      window.open(fileData.fileUrl, '_blank');
+    if (!fileData) return;
+    
+    // Create an invisible anchor element for more reliable downloads
+    const link = document.createElement('a');
+    link.href = fileData.fileUrl;
+    link.download = fileData.fileName; // Set the filename for the download
+    link.target = "_blank"; // Open in new tab as fallback
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    
+    try {
+      link.click(); // Trigger the download
       toast.success("File download started");
+    } catch (err) {
+      console.error("Error starting download:", err);
+      // Fallback for devices that don't support the download attribute
+      window.open(fileData.fileUrl, '_blank');
+      toast.success("File opened in new tab");
+    } finally {
+      // Clean up
+      document.body.removeChild(link);
     }
   };
 
@@ -138,10 +157,31 @@ const FileAccess = () => {
                   {fileData?.fileType}
                 </p>
                 
-                <Button onClick={handleDownload} size="lg" className="animate-pulse">
+                {/* Primary download button */}
+                <Button onClick={handleDownload} size="lg" className="mb-4">
                   <Download className="mr-2 h-5 w-5" />
                   Download File
                 </Button>
+                
+                {/* Alternative direct link for mobile */}
+                {isMobile && fileData && (
+                  <div className="mt-4 w-full max-w-md">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      If the download doesn't start automatically:
+                    </p>
+                    <Button variant="outline" asChild className="w-full">
+                      <a 
+                        href={fileData.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center"
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Open Directly
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
