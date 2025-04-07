@@ -70,13 +70,15 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
 
   try {
     console.log("Starting to process scheduled files at:", new Date().toISOString());
-    console.log("Using APP_URL:", APP_URL); // Log the URL being used
+    console.log("Using APP_URL:", APP_URL);
     
     // Try to enable realtime for the scheduled_files table (if not already enabled)
     await enableRealtimeForScheduledFiles();
     
     // Fetch all pending scheduled files with timezone-aware comparison
     const currentUtcTime = new Date().toISOString();
+    console.log("Current UTC time:", currentUtcTime);
+    
     const { data: scheduledFiles, error: selectError } = await supabaseClient
       .from("scheduled_files")
       .select("*")
@@ -133,7 +135,7 @@ async function processScheduledFiles(): Promise<{ success: number; failed: numbe
           console.log("For testing in development, consider setting the recipient to your own verified email address.");
         }
         
-        // New improved email template
+        // Updated email template with the requested structure
         const emailTemplate = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
             <h2 style="color: #4F46E5;">Time Capsule</h2>

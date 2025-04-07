@@ -26,20 +26,39 @@ const Dashboard = () => {
   
   const realtimeChannelRef = useRef<any>(null);
   const refreshIntervalRef = useRef<number | null>(null);
+  const fetchAttemptRef = useRef(0);
+  const hasUserCheckedRef = useRef(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
   
   const fetchFiles = useCallback(async () => {
-    if (!user) return;
+    // Check if user exists before attempting to fetch
+    if (!user) {
+      // Don't try more than 5 times to avoid infinite loading 
+      // when actually not authenticated
+      if (fetchAttemptRef.current > 5) {
+        console.log("No user after multiple attempts, stopping fetch attempts");
+        setIsLoading(false);
+        return;
+      }
+      
+      fetchAttemptRef.current += 1;
+      console.log(`No user yet, attempt ${fetchAttemptRef.current}`);
+      return;
+    }
+    
+    // Mark that we've checked the user at least once
+    hasUserCheckedRef.current = true;
     
     try {
       console.log("Fetching scheduled files");
-      setIsLoading(true);
       const data = await getScheduledFiles();
       console.log("Fetched files:", data);
+      
       setFiles(data);
       setFilteredFiles(data);
+      setInitialLoadComplete(true);
     } catch (error) {
       console.error("Error fetching files:", error);
       toast({
@@ -50,7 +69,6 @@ const Dashboard = () => {
       });
     } finally {
       setIsLoading(false);
-      setInitialLoadComplete(true);
     }
   }, [toast, user]);
 
@@ -76,7 +94,14 @@ const Dashboard = () => {
   }, [user, files, fetchFiles, initialLoadComplete]);
 
   const setupRealtimeSubscription = useCallback(() => {
-    if (!user || realtimeChannelRef.current) return () => {};
+    // Clean up existing subscription if any
+    if (realtimeChannelRef.current) {
+      console.log("Cleaning up existing realtime subscription");
+      supabase.removeChannel(realtimeChannelRef.current);
+      realtimeChannelRef.current = null;
+    }
+    
+    if (!user) return;
     
     console.log("Setting up realtime subscription for scheduled_files table");
     
@@ -92,30 +117,33 @@ const Dashboard = () => {
         (payload) => {
           console.log('Real-time update received:', payload);
           
-          setTimeout(() => {
-            console.log("Triggering fetch after realtime update");
-            fetchFiles();
-          }, 1000);
-          
-          if (payload.eventType === 'UPDATE' && 
-              payload.new && payload.old && 
-              payload.new.status !== payload.old.status) {
+          // Only fetch files if it's our own user's data
+          if (payload.new && payload.new.user_id === user.id) {
+            setTimeout(() => {
+              console.log("Triggering fetch after realtime update");
+              fetchFiles();
+            }, 1000);
             
-            if (payload.new.status === 'sent' && 
-                (payload.old.status === 'pending' || payload.old.status === 'processing')) {
-              toast({
-                title: "File Sent",
-                description: `The file "${payload.new.file_name}" has been sent.`,
-                duration: 3000
-              });
-            } else if (payload.new.status === 'failed' && 
-                      (payload.old.status === 'pending' || payload.old.status === 'processing')) {
-              toast({
-                variant: "destructive",
-                title: "File Failed",
-                description: `Failed to send "${payload.new.file_name}".`,
-                duration: 3000
-              });
+            if (payload.eventType === 'UPDATE' && 
+                payload.new && payload.old && 
+                payload.new.status !== payload.old.status) {
+              
+              if (payload.new.status === 'sent' && 
+                  (payload.old.status === 'pending' || payload.old.status === 'processing')) {
+                toast({
+                  title: "File Sent",
+                  description: `The file "${payload.new.file_name}" has been sent.`,
+                  duration: 3000
+                });
+              } else if (payload.new.status === 'failed' && 
+                        (payload.old.status === 'pending' || payload.old.status === 'processing')) {
+                toast({
+                  variant: "destructive",
+                  title: "File Failed",
+                  description: `Failed to send "${payload.new.file_name}".`,
+                  duration: 3000
+                });
+              }
             }
           }
         }
@@ -125,14 +153,6 @@ const Dashboard = () => {
       });
       
     realtimeChannelRef.current = channel;
-    
-    return () => {
-      console.log('Removing realtime subscription');
-      if (channel) {
-        supabase.removeChannel(channel);
-        realtimeChannelRef.current = null;
-      }
-    };
   }, [fetchFiles, toast, user]);
   
   const setupRefreshListener = useCallback(() => {
@@ -148,19 +168,50 @@ const Dashboard = () => {
     };
   }, [fetchFiles]);
 
+  // Main effect for initialization
+  useEffect(() => {
+    console.log("Main effect running, user:", user ? "exists" : "null");
+    
+    // If loading is false but we haven't checked the user yet, and user exists
+    // then we need to start loading and fetch files
+    if (!isLoading && !hasUserCheckedRef.current && user) {
+      console.log("User available but haven't loaded yet, starting load");
+      setIsLoading(true);
+    }
+    
+    // Do the initial fetch if loading
+    if (isLoading && user) {
+      fetchFiles();
+    }
+    
+    // Clean up any existing subscriptions to prevent duplicates
+    return () => {
+      if (realtimeChannelRef.current) {
+        console.log("Removing realtime subscription");
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
+      
+      if (refreshIntervalRef.current !== null) {
+        console.log("Clearing refresh interval");
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [user, isLoading, fetchFiles]);
+  
+  // Setup subscriptions once user is available
   useEffect(() => {
     if (!user) return;
     
-    fetchFiles();
-    
     const cleanupRealtime = setupRealtimeSubscription();
-    
     const cleanupRefresh = setupRefreshListener();
     
     const initialCheckTimer = setTimeout(() => {
       checkAndTriggerPendingFiles();
     }, 2000);
     
+    // Only start interval if not already running
     if (refreshIntervalRef.current === null) {
       refreshIntervalRef.current = window.setInterval(() => {
         console.log("Auto-refreshing file list to check for pending deliveries");
@@ -169,17 +220,12 @@ const Dashboard = () => {
     }
     
     return () => {
-      cleanupRealtime();
-      cleanupRefresh();
+      // Only cleanup what was set up in this effect
       clearTimeout(initialCheckTimer);
-      
-      if (refreshIntervalRef.current !== null) {
-        clearInterval(refreshIntervalRef.current);
-        refreshIntervalRef.current = null;
-      }
     };
-  }, [user, fetchFiles, setupRealtimeSubscription, setupRefreshListener, checkAndTriggerPendingFiles]);
+  }, [user, setupRealtimeSubscription, setupRefreshListener, checkAndTriggerPendingFiles]);
   
+  // Filter files whenever relevant state changes
   useEffect(() => {
     if (initialLoadComplete) {
       filterFiles();

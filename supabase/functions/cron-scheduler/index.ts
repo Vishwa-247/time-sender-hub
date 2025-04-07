@@ -35,6 +35,16 @@ serve(async (req) => {
         console.log(`Found ${pendingFiles.length} pending files to process:`, pendingFiles);
       } else {
         console.log("No pending files found to process at this time");
+        // Return early if no pending files to save resources
+        return new Response(
+          JSON.stringify({
+            message: "No pending files to process",
+            timestamp: new Date().toISOString(),
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
     }
     
@@ -75,6 +85,30 @@ serve(async (req) => {
         console.error("Error checking for new pending files:", newCountError);
       } else if (newPendingFiles && newPendingFiles.length > 0) {
         console.log(`Found ${newPendingFiles.length} new pending files that are ready to be sent`);
+        
+        // If we still have pending files, make one more call to process them
+        if (newPendingFiles.length > 0) {
+          console.log("Making a follow-up call to process remaining pending files");
+          
+          try {
+            const followUpResponse = await fetch(functionsUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseKey}`
+              }
+            });
+            
+            if (followUpResponse.ok) {
+              const followUpData = await followUpResponse.json();
+              console.log("Follow-up send scheduled function result:", followUpData);
+            } else {
+              console.error("Follow-up call failed:", followUpResponse.status, followUpResponse.statusText);
+            }
+          } catch (followUpError) {
+            console.error("Error in follow-up call:", followUpError);
+          }
+        }
       }
     }
 
