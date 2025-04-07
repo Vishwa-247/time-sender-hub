@@ -1,6 +1,105 @@
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { io, Socket } from "socket.io-client";
+
+let socket: Socket | null = null;
+let isSocketConnecting = false;
+
+export const initializeSocket = async (): Promise<Socket> => {
+  if (socket) return socket;
+  if (isSocketConnecting) {
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (socket && !isSocketConnecting) {
+          clearInterval(checkInterval);
+          resolve(socket);
+        }
+      }, 100);
+    });
+  }
+
+  try {
+    isSocketConnecting = true;
+    const socketIoUrl = 'https://limzhusojiirnsefkupe.supabase.co/functions/v1/cron-scheduler';
+    console.log("Connecting to Socket.io server:", socketIoUrl);
+    
+    socket = io(socketIoUrl, {
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to Socket.io server with ID:', socket.id);
+      toast({
+        title: "Connected",
+        description: "Real-time updates enabled",
+        duration: 3000
+      });
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.io connection error:', error);
+      toast({
+        variant: "destructive",
+        title: "Connection Error",
+        description: "Failed to connect to real-time service",
+        duration: 3000
+      });
+    });
+
+    socket.on('files-processed', (data) => {
+      console.log('Files processed event received:', data);
+      
+      if (data.processed === 0) {
+        toast({
+          title: "No Files to Send",
+          description: "No files ready to be sent at this time",
+          duration: 2000
+        });
+      } else if (data.success > 0) {
+        toast({
+          title: "Success",
+          description: `Sent ${data.success} file(s)`,
+          duration: 2000
+        });
+        
+        if (data.failed > 0) {
+          toast({
+            title: "Free Tier Notice",
+            description: "Some emails failed - verify recipient emails",
+            duration: 3000
+          });
+        }
+      } else if (data.failed > 0) {
+        toast({
+          variant: "destructive", 
+          title: "Error",
+          description: `Failed to send ${data.failed} file(s)`,
+          duration: 2000
+        });
+      }
+      
+      window.dispatchEvent(new CustomEvent('refresh-file-list'));
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from Socket.io server');
+    });
+
+    return new Promise((resolve) => {
+      socket.on('connect', () => {
+        isSocketConnecting = false;
+        resolve(socket);
+      });
+    });
+  } catch (error) {
+    console.error("Error initializing Socket.io:", error);
+    isSocketConnecting = false;
+    throw error;
+  }
+};
 
 export interface ScheduleFileParams {
   file: File;
@@ -107,9 +206,7 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       duration: 2000
     });
     
-    // Check if recipient is using a verified domain in development
     if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-      // Show a notice about Resend limitations in development
       toast({
         title: "Free Tier Notice",
         description: "With free tier, emails only go to verified addresses",
@@ -117,14 +214,12 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       });
     }
     
-    // Automatically trigger the file sending process if it should be sent immediately
     const now = new Date();
     if (params.scheduledDate <= now) {
       try {
         await triggerFileSending();
       } catch (triggerError) {
         console.log("Non-critical error when triggering immediate file sending:", triggerError);
-        // Non-critical error, don't rethrow
       }
     }
   } catch (error: any) {
@@ -166,7 +261,6 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
       duration: 2000
     });
     
-    // Check if the updated date is now or in the past, if so trigger sending
     const now = new Date();
     if (params.scheduledDate <= now) {
       try {
@@ -284,8 +378,8 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       scheduledDate: new Date(item.scheduled_date),
       status: item.status as "pending" | "sent" | "failed",
       createdAt: new Date(item.created_at),
-      access_token: item.access_token, // Include access_token for file previews
-      storage_path: item.storage_path // Add storage path for previewing unsent files
+      access_token: item.access_token,
+      storage_path: item.storage_path
     }));
   } catch (error: any) {
     console.error("Error fetching scheduled files:", error);
@@ -320,7 +414,6 @@ export const getFileByToken = async (token: string): Promise<{
     
     console.log("File data found in database:", data);
     
-    // Get a signed URL for the file regardless of status
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from("timecapsule")
@@ -333,7 +426,6 @@ export const getFileByToken = async (token: string): Promise<{
     
     console.log("Signed URL created successfully:", fileData.signedUrl);
     
-    // If file was pending, try to update status to 'sent'
     if (data.status === 'pending') {
       try {
         const { error: updateError } = await supabase
@@ -346,13 +438,11 @@ export const getFileByToken = async (token: string): Promise<{
         
         if (updateError) {
           console.error("Error updating file status:", updateError);
-          // Continue anyway, the user should still be able to access the file
         } else {
           console.log("Updated file status to 'sent'");
         }
       } catch (updateErr) {
         console.error("Exception updating file status:", updateErr);
-        // Continue anyway
       }
     }
     
@@ -394,79 +484,71 @@ export const triggerFileSending = async (): Promise<any> => {
       duration: 2000
     });
     
-    // Using the Supabase URL from the client to construct the function URL
-    const functionUrl = "https://limzhusojiirnsefkupe.supabase.co/functions/v1/send-scheduled-file";
-    console.log("Calling function at URL:", functionUrl);
-    
-    const { data: authData } = await supabase.auth.getSession();
-    const accessToken = authData.session?.access_token;
-    
-    // Make a direct fetch request to the function
-    const response = await fetch(functionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": accessToken ? `Bearer ${accessToken}` : "",
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Error response from send-scheduled-file:", errorText);
-      throw new Error(`Failed to trigger: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log("File sending result:", data);
-    
-    // Add a longer delay to allow database updates to sync
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Force refresh the file list to show updated statuses
-    window.dispatchEvent(new CustomEvent('refresh-file-list'));
-    
-    // Now show toast messages with the results
-    if (data?.processed === 0) {
-      toast({
-        title: "No Files to Send",
-        description: "No files ready to be sent at this time",
-        duration: 2000
-      });
-    } else if (data?.success > 0) {
-      toast({
-        title: "Success",
-        description: `Sent ${data.success} file(s)`,
-        duration: 2000
+    try {
+      const socketClient = await initializeSocket();
+      console.log("Emitting trigger-file-sending event");
+      
+      const responsePromise = new Promise((resolve, reject) => {
+        socketClient.once('file-sending-result', (data) => {
+          console.log("Received file-sending-result:", data);
+          resolve(data);
+        });
+        
+        socketClient.once('file-sending-error', (error) => {
+          console.error("Received file-sending-error:", error);
+          reject(new Error(error.message || "Unknown socket error"));
+        });
+        
+        setTimeout(() => {
+          reject(new Error("Socket.io timeout - no response received"));
+        }, 10000);
       });
       
-      // If using Resend free tier and some files failed, explain the limitations
-      if (data?.failed > 0) {
-        toast({
-          title: "Free Tier Notice",
-          description: "Some emails failed - verify recipient emails",
-          duration: 3000
-        });
+      socketClient.emit('trigger-file-sending');
+      
+      const data = await responsePromise;
+      console.log("File sending result:", data);
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      window.dispatchEvent(new CustomEvent('refresh-file-list'));
+      
+      return data;
+    } catch (socketError) {
+      console.error("Socket.io error, falling back to HTTP:", socketError);
+      
+      const functionUrl = "https://limzhusojiirnsefkupe.supabase.co/functions/v1/send-scheduled-file";
+      console.log("Falling back to HTTP call at URL:", functionUrl);
+      
+      const { data: authData } = await supabase.auth.getSession();
+      const accessToken = authData.session?.access_token;
+      
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": accessToken ? `Bearer ${accessToken}` : "",
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response from send-scheduled-file:", errorText);
+        throw new Error(`Failed to trigger: ${response.status} ${response.statusText}`);
       }
-    } else if (data?.failed > 0) {
-      toast({
-        variant: "destructive", 
-        title: "Error",
-        description: `Failed to send ${data.failed} file(s)`,
-        duration: 2000
-      });
-    } else {
-      toast({
-        title: "No Changes",
-        description: "No changes made to any files",
-        duration: 2000
-      });
+      
+      const data = await response.json();
+      console.log("File sending result (HTTP fallback):", data);
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      window.dispatchEvent(new CustomEvent('refresh-file-list'));
+      
+      return data;
     }
-    
-    return data;
   } catch (error: any) {
     console.error("Error triggering file sending:", error);
     
-    // Provide more descriptive error messages
     if (error.message?.includes("Failed to fetch") || 
         error.message?.includes("Network") ||
         error.message?.includes("CORS")) {

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { File, Download, ArrowLeft, Loader2, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getFileByToken } from "@/services/fileService";
+import { getFileByToken, initializeSocket } from "@/services/fileService";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -19,6 +19,21 @@ const FileAccess = () => {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
   const isMobile = useIsMobile();
+
+  // Initialize Socket.io connection on component mount
+  useEffect(() => {
+    const setupSocket = async () => {
+      try {
+        await initializeSocket();
+        console.log("Socket.io initialized in FileAccess");
+      } catch (err) {
+        console.error("Failed to initialize Socket.io:", err);
+        // Non-critical error, continue loading the file
+      }
+    };
+    
+    setupSocket();
+  }, []);
 
   useEffect(() => {
     const fetchFile = async () => {
