@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { FileItem } from "@/components/FileCard";
 import { toast } from "sonner";
@@ -32,8 +33,7 @@ export const initializeSocket = async (): Promise<Socket> => {
 
     socket.on('connect', () => {
       console.log('Connected to Socket.io server with ID:', socket.id);
-      toast({
-        title: "Connected",
+      toast("Connected", {
         description: "Real-time updates enabled",
         duration: 3000
       });
@@ -41,11 +41,10 @@ export const initializeSocket = async (): Promise<Socket> => {
 
     socket.on('connect_error', (error) => {
       console.error('Socket.io connection error:', error);
-      toast({
-        variant: "destructive",
-        title: "Connection Error",
+      toast("Connection Error", {
         description: "Failed to connect to real-time service",
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
     });
 
@@ -53,31 +52,27 @@ export const initializeSocket = async (): Promise<Socket> => {
       console.log('Files processed event received:', data);
       
       if (data.processed === 0) {
-        toast({
-          title: "No Files to Send",
+        toast("No Files to Send", {
           description: "No files ready to be sent at this time",
           duration: 2000
         });
       } else if (data.success > 0) {
-        toast({
-          title: "Success",
+        toast("Success", {
           description: `Sent ${data.success} file(s)`,
           duration: 2000
         });
         
         if (data.failed > 0) {
-          toast({
-            title: "Free Tier Notice",
+          toast("Free Tier Notice", {
             description: "Some emails failed - verify recipient emails",
             duration: 3000
           });
         }
       } else if (data.failed > 0) {
-        toast({
-          variant: "destructive", 
-          title: "Error",
+        toast("Error", {
           description: `Failed to send ${data.failed} file(s)`,
-          duration: 2000
+          duration: 2000,
+          style: { backgroundColor: 'rgb(var(--color-destructive))' }
         });
       }
       
@@ -127,11 +122,10 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
     
   if (error) {
     console.error("Error uploading file:", error);
-    toast({
-      variant: "destructive",
-      title: "Upload Error",
+    toast("Upload Error", {
       description: `Failed to upload file: ${error.message}`,
-      duration: 3000
+      duration: 3000,
+      style: { backgroundColor: 'rgb(var(--color-destructive))' }
     });
     throw error;
   }
@@ -164,11 +158,10 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
   try {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
-      toast({
-        variant: "destructive",
-        title: "Auth Error",
+      toast("Auth Error", {
         description: "User not authenticated",
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw new Error("User not authenticated");
     }
@@ -191,24 +184,21 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
       });
       
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error", 
+      toast("Error", {
         description: `Failed to schedule: ${error.message}`,
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw error;
     }
     
-    toast({
-      title: "Success",
+    toast("Success", {
       description: "File scheduled successfully",
       duration: 2000
     });
     
     if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-      toast({
-        title: "Free Tier Notice",
+      toast("Free Tier Notice", {
         description: "With free tier, emails only go to verified addresses",
         duration: 3000
       });
@@ -224,11 +214,10 @@ export const scheduleFile = async (params: ScheduleFileParams): Promise<void> =>
     }
   } catch (error: any) {
     console.error("Error scheduling file:", error);
-    toast({
-      variant: "destructive",
-      title: "Schedule Error",
+    toast("Schedule Error", {
       description: `Error: ${error.message}`,
-      duration: 3000
+      duration: 3000,
+      style: { backgroundColor: 'rgb(var(--color-destructive))' }
     });
     throw error;
   }
@@ -246,17 +235,15 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
       .eq("id", params.id);
       
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Update Error",
+      toast("Update Error", {
         description: `Failed: ${error.message}`,
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw error;
     }
     
-    toast({
-      title: "Success",
+    toast("Success", {
       description: "Schedule updated",
       duration: 2000
     });
@@ -271,11 +258,10 @@ export const updateScheduledFile = async (params: UpdateScheduleParams): Promise
     }
   } catch (error: any) {
     console.error("Error updating scheduled file:", error);
-    toast({
-      variant: "destructive",
-      title: "Update Error",
+    toast("Update Error", {
       description: `Error: ${error.message}`,
-      duration: 3000
+      duration: 3000,
+      style: { backgroundColor: 'rgb(var(--color-destructive))' }
     });
     throw error;
   }
@@ -290,11 +276,10 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       .single();
       
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Delete Error",
+      toast("Delete Error", {
         description: `Failed to delete file: ${error.message}`,
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw error;
     }
@@ -314,27 +299,24 @@ export const deleteScheduledFile = async (id: string): Promise<void> => {
       .eq("id", id);
       
     if (dbError) {
-      toast({
-        variant: "destructive",
-        title: "Delete Error",
+      toast("Delete Error", {
         description: `Failed to delete record: ${dbError.message}`,
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw dbError;
     }
     
-    toast({
-      title: "Success",
+    toast("Success", {
       description: "File deleted successfully",
       duration: 3000
     });
   } catch (error: any) {
     console.error("Error deleting scheduled file:", error);
-    toast({
-      variant: "destructive",
-      title: "Delete Error",
+    toast("Delete Error", {
       description: `Error deleting scheduled file: ${error.message}`,
-      duration: 3000
+      duration: 3000,
+      style: { backgroundColor: 'rgb(var(--color-destructive))' }
     });
     throw error;
   }
@@ -344,11 +326,10 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Error",
+      toast("Authentication Error", {
         description: "User not authenticated",
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       return [];
     }
@@ -360,11 +341,10 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
       .order("created_at", { ascending: false });
       
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Fetch Error",
+      toast("Fetch Error", {
         description: `Failed to fetch files: ${error.message}`,
-        duration: 3000
+        duration: 3000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
       throw error;
     }
@@ -383,11 +363,10 @@ export const getScheduledFiles = async (): Promise<FileItem[]> => {
     }));
   } catch (error: any) {
     console.error("Error fetching scheduled files:", error);
-    toast({
-      variant: "destructive",
-      title: "Fetch Error",
+    toast("Fetch Error", {
       description: `Error fetching scheduled files: ${error.message}`,
-      duration: 3000
+      duration: 3000,
+      style: { backgroundColor: 'rgb(var(--color-destructive))' }
     });
     return [];
   }
@@ -478,8 +457,7 @@ export const getFilePreviewByStoragePath = async (storagePath: string): Promise<
 
 export const triggerFileSending = async (): Promise<any> => {
   try {
-    toast({
-      title: "Processing",
+    toast("Processing", {
       description: "Sending files...",
       duration: 2000
     });
@@ -552,18 +530,16 @@ export const triggerFileSending = async (): Promise<any> => {
     if (error.message?.includes("Failed to fetch") || 
         error.message?.includes("Network") ||
         error.message?.includes("CORS")) {
-      toast({
-        variant: "destructive",
-        title: "Connection Error",
+      toast("Connection Error", {
         description: "Cannot connect to the server",
-        duration: 2000
+        duration: 2000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
     } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
+      toast("Error", {
         description: `${error.message || "Unknown error"}`,
-        duration: 2000
+        duration: 2000,
+        style: { backgroundColor: 'rgb(var(--color-destructive))' }
       });
     }
     
